@@ -21,6 +21,14 @@ function parseDataAAAAMMDD(valor: string): Date {
   return new Date(Date.UTC(ano, mes - 1, dia));
 }
 
+const MAX_ERROS_EXIBIDOS = 5;
+
+function formatarErrosParser(erros: string[]): string {
+  const exibidos = erros.slice(0, MAX_ERROS_EXIBIDOS).join(" ");
+  const restante = erros.length - MAX_ERROS_EXIBIDOS;
+  return restante > 0 ? `${exibidos} (+${restante} outro(s) problema(s) no arquivo)` : exibidos;
+}
+
 export async function importarAction(
   _estadoAnterior: ResultadoImportacao,
   formData: FormData
@@ -39,26 +47,101 @@ export async function importarAction(
   if (!(arquivo instanceof File) || arquivo.size === 0) {
     return { ok: false, erro: "Selecione um arquivo CSV." };
   }
+  if (!arquivo.name.toLowerCase().endsWith(".csv")) {
+    return { ok: false, erro: "O arquivo precisa ter extensão .csv." };
+  }
 
   const conteudo = await arquivo.text();
 
   if (tipo === "ENTRADA") {
     const resultado = parseEntradaCsv(conteudo);
+    if (resultado.erros.length > 0) {
+      return { ok: false, erro: formatarErrosParser(resultado.erros) };
+    }
     if (!resultado.cabecalho || !resultado.totalizador || resultado.pedidos.length === 0) {
       return { ok: false, erro: "Arquivo fora do formato esperado (faltam linhas tipo 0/1/9)." };
     }
 
-    const blob = await put(`entradas/${Date.now()}-${arquivo.name}`, conteudo, {
+    const totalizador = resultado.totalizador;
+
+    try {
+      const blob = await put(`entradas/${Date.now()}-${arquivo.name}`, conteudo, {
+        access: "private",
+        contentType: "text/csv",
+      });
+
+      await prisma.$transaction(async (tx) => {
+        const importacao = await tx.importacao.create({
+          data: {
+            tipo: "ENTRADA",
+            nomeArquivo: arquivo.name,
+            blobUrl: blob.url,
+            usuarioId: usuario.id,
+            dataArquivoOriginal: resultado.cabecalho?.dataArquivo
+              ? parseDataAAAAMMDD(resultado.cabecalho.dataArquivo)
+              : null,
+            qtdRegistros: totalizador.qtdRegistros,
+            valorTotal: totalizador.valorTotalGeral,
+          },
+        });
+
+        for (const pedido of resultado.pedidos) {
+          const categoria = await tx.categoria.upsert({
+            where: { nome_tipo: { nome: pedido.categoria, tipo: "ENTRADA" } },
+            create: { nome: pedido.categoria, tipo: "ENTRADA" },
+            update: {},
+          });
+
+          await tx.pedidoAgrupado.create({
+            data: {
+              importacaoId: importacao.id,
+              cliente: pedido.cliente,
+              categoriaId: categoria.id,
+              subtotal: pedido.subtotal,
+              descontoPercentual: pedido.descontoPercentual,
+              descontoValor: pedido.descontoValor,
+              frete: pedido.frete,
+              valorTotal: pedido.valorTotal,
+              formaPagamento: pedido.formaPagamento,
+              dataPedido: parseDataAAAAMMDD(pedido.dataPedido),
+              status: pedido.status,
+            },
+          });
+        }
+      });
+    } catch (erro) {
+      console.error(erro);
+      return { ok: false, erro: "Não foi possível gravar a importação. Tente novamente." };
+    }
+
+    return {
+      ok: true,
+      qtdRegistros: resultado.pedidos.length,
+      qtdIgnorados: resultado.ignorados,
+      valorTotal: totalizador.valorTotalGeral,
+    };
+  }
+
+  const resultado = parseSaidaCsv(conteudo);
+  if (resultado.erros.length > 0) {
+    return { ok: false, erro: formatarErrosParser(resultado.erros) };
+  }
+  if (!resultado.cabecalho || !resultado.totalizador || resultado.despesas.length === 0) {
+    return { ok: false, erro: "Arquivo fora do formato esperado (faltam linhas tipo 0/1/9)." };
+  }
+
+  const totalizador = resultado.totalizador;
+
+  try {
+    const blob = await put(`saidas/${Date.now()}-${arquivo.name}`, conteudo, {
       access: "private",
       contentType: "text/csv",
     });
 
-    const totalizador = resultado.totalizador;
-
     await prisma.$transaction(async (tx) => {
       const importacao = await tx.importacao.create({
         data: {
-          tipo: "ENTRADA",
+          tipo: "SAIDA",
           nomeArquivo: arquivo.name,
           blobUrl: blob.url,
           usuarioId: usuario.id,
@@ -70,86 +153,30 @@ export async function importarAction(
         },
       });
 
-      for (const pedido of resultado.pedidos) {
+      for (const despesa of resultado.despesas) {
         const categoria = await tx.categoria.upsert({
-          where: { nome_tipo: { nome: pedido.categoria, tipo: "ENTRADA" } },
-          create: { nome: pedido.categoria, tipo: "ENTRADA" },
+          where: { nome_tipo: { nome: despesa.categoria, tipo: "SAIDA" } },
+          create: { nome: despesa.categoria, tipo: "SAIDA" },
           update: {},
         });
 
-        await tx.pedidoAgrupado.create({
+        await tx.despesaAgrupada.create({
           data: {
             importacaoId: importacao.id,
-            cliente: pedido.cliente,
+            fornecedor: despesa.fornecedor,
             categoriaId: categoria.id,
-            subtotal: pedido.subtotal,
-            descontoPercentual: pedido.descontoPercentual,
-            descontoValor: pedido.descontoValor,
-            frete: pedido.frete,
-            valorTotal: pedido.valorTotal,
-            formaPagamento: pedido.formaPagamento,
-            dataPedido: parseDataAAAAMMDD(pedido.dataPedido),
-            status: pedido.status,
+            valor: despesa.valor,
+            formaPagamento: despesa.formaPagamento,
+            dataPagamento: parseDataAAAAMMDD(despesa.dataPagamento),
+            status: despesa.status,
           },
         });
       }
     });
-
-    return {
-      ok: true,
-      qtdRegistros: resultado.pedidos.length,
-      qtdIgnorados: resultado.ignorados,
-      valorTotal: totalizador.valorTotalGeral,
-    };
+  } catch (erro) {
+    console.error(erro);
+    return { ok: false, erro: "Não foi possível gravar a importação. Tente novamente." };
   }
-
-  const resultado = parseSaidaCsv(conteudo);
-  if (!resultado.cabecalho || !resultado.totalizador || resultado.despesas.length === 0) {
-    return { ok: false, erro: "Arquivo fora do formato esperado (faltam linhas tipo 0/1/9)." };
-  }
-
-  const blob = await put(`saidas/${Date.now()}-${arquivo.name}`, conteudo, {
-    access: "private",
-    contentType: "text/csv",
-  });
-
-  const totalizador = resultado.totalizador;
-
-  await prisma.$transaction(async (tx) => {
-    const importacao = await tx.importacao.create({
-      data: {
-        tipo: "SAIDA",
-        nomeArquivo: arquivo.name,
-        blobUrl: blob.url,
-        usuarioId: usuario.id,
-        dataArquivoOriginal: resultado.cabecalho?.dataArquivo
-          ? parseDataAAAAMMDD(resultado.cabecalho.dataArquivo)
-          : null,
-        qtdRegistros: totalizador.qtdRegistros,
-        valorTotal: totalizador.valorTotalGeral,
-      },
-    });
-
-    for (const despesa of resultado.despesas) {
-      const categoria = await tx.categoria.upsert({
-        where: { nome_tipo: { nome: despesa.categoria, tipo: "SAIDA" } },
-        create: { nome: despesa.categoria, tipo: "SAIDA" },
-        update: {},
-      });
-
-      await tx.despesaAgrupada.create({
-        data: {
-          importacaoId: importacao.id,
-          fornecedor: despesa.fornecedor,
-          categoriaId: categoria.id,
-          valor: despesa.valor,
-          formaPagamento: despesa.formaPagamento,
-          dataPagamento: parseDataAAAAMMDD(despesa.dataPagamento),
-          status: despesa.status,
-        },
-      });
-    }
-  });
 
   return {
     ok: true,

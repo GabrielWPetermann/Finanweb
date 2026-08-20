@@ -2,6 +2,12 @@
 // Funciona porque o formato assume que nomes de cliente/categoria nao tem
 // virgula. Ver README para o contrato completo do formato e essa limitacao.
 
+const CAMPOS_CABECALHO = 10;
+const CAMPOS_DETALHE = 11;
+const CAMPOS_TOTALIZADOR = 3;
+
+const REGEX_DATA = /^\d{8}$/;
+
 export interface EntradaCabecalho {
   nomeEmpresa: string;
   cnpj: string;
@@ -33,6 +39,7 @@ export interface EntradaParseResult {
   pedidos: EntradaPedido[];
   totalizador: EntradaTotalizador | null;
   ignorados: number;
+  erros: string[];
 }
 
 export function parseEntradaCsv(conteudo: string): EntradaParseResult {
@@ -41,51 +48,93 @@ export function parseEntradaCsv(conteudo: string): EntradaParseResult {
   let cabecalho: EntradaCabecalho | null = null;
   let totalizador: EntradaTotalizador | null = null;
   const pedidos: EntradaPedido[] = [];
+  const erros: string[] = [];
   let ignorados = 0;
 
-  for (const linha of linhas) {
+  linhas.forEach((linha, indice) => {
+    const numeroLinha = indice + 1;
     const campos = linha.split(",");
 
     switch (campos[0]) {
-      case "0":
+      case "0": {
+        if (campos.length !== CAMPOS_CABECALHO) {
+          erros.push(
+            `Linha ${numeroLinha}: cabeçalho (tipo 0) deveria ter ${CAMPOS_CABECALHO} campos, tem ${campos.length}.`
+          );
+          return;
+        }
         cabecalho = {
-          nomeEmpresa: campos[1] ?? "",
-          cnpj: campos[2] ?? "",
-          tipoDocumento: campos[7] ?? "",
-          dataArquivo: campos[8] ?? "",
-          usuario: campos[9] ?? "",
+          nomeEmpresa: campos[1],
+          cnpj: campos[2],
+          tipoDocumento: campos[7],
+          dataArquivo: campos[8],
+          usuario: campos[9],
         };
         break;
+      }
 
       case "1": {
-        const status = (campos[10] ?? "").trim();
+        if (campos.length !== CAMPOS_DETALHE) {
+          erros.push(
+            `Linha ${numeroLinha}: registro de cliente (tipo 1) deveria ter ${CAMPOS_DETALHE} campos, tem ${campos.length}. Confira se o arquivo não é do formato de Saída.`
+          );
+          return;
+        }
+
+        const status = campos[10].trim();
         if (status.toUpperCase() === "CANCELADO") {
           ignorados++;
-          break;
+          return;
         }
+
+        const subtotal = Number(campos[3]);
+        const descontoPercentual = Number(campos[4]);
+        const descontoValor = Number(campos[5]);
+        const frete = Number(campos[6]);
+        const valorTotal = Number(campos[7]);
+
+        if ([subtotal, descontoPercentual, descontoValor, frete, valorTotal].some(Number.isNaN)) {
+          erros.push(`Linha ${numeroLinha}: valores numéricos inválidos (subtotal/desconto/frete/valor_total).`);
+          return;
+        }
+        if (!REGEX_DATA.test(campos[9])) {
+          erros.push(`Linha ${numeroLinha}: data_pedido inválida, esperado AAAAMMDD (ex: 20260813).`);
+          return;
+        }
+
         pedidos.push({
-          cliente: campos[1] ?? "",
-          categoria: campos[2] ?? "",
-          subtotal: Number(campos[3]),
-          descontoPercentual: Number(campos[4]),
-          descontoValor: Number(campos[5]),
-          frete: Number(campos[6]),
-          valorTotal: Number(campos[7]),
-          formaPagamento: campos[8] ?? "",
-          dataPedido: campos[9] ?? "",
+          cliente: campos[1],
+          categoria: campos[2],
+          subtotal,
+          descontoPercentual,
+          descontoValor,
+          frete,
+          valorTotal,
+          formaPagamento: campos[8],
+          dataPedido: campos[9],
           status,
         });
         break;
       }
 
-      case "9":
-        totalizador = {
-          qtdRegistros: Number(campos[1]),
-          valorTotalGeral: Number(campos[2]),
-        };
+      case "9": {
+        if (campos.length !== CAMPOS_TOTALIZADOR) {
+          erros.push(
+            `Linha ${numeroLinha}: totalizador (tipo 9) deveria ter ${CAMPOS_TOTALIZADOR} campos, tem ${campos.length}.`
+          );
+          return;
+        }
+        const qtdRegistros = Number(campos[1]);
+        const valorTotalGeral = Number(campos[2]);
+        if (Number.isNaN(qtdRegistros) || Number.isNaN(valorTotalGeral)) {
+          erros.push(`Linha ${numeroLinha}: totalizador com valores numéricos inválidos.`);
+          return;
+        }
+        totalizador = { qtdRegistros, valorTotalGeral };
         break;
+      }
     }
-  }
+  });
 
-  return { cabecalho, pedidos, totalizador, ignorados };
+  return { cabecalho, pedidos, totalizador, ignorados, erros };
 }
