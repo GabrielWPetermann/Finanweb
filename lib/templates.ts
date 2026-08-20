@@ -18,7 +18,7 @@ export function gerarModeloEntradaCsv(): string {
       "1000.00",
       "Boleto",
       "20260101",
-      "TOTAL",
+      "CONFIRMADO",
     ]),
     linhaCsv(["9", "1", "1000.00"]),
   ];
@@ -29,7 +29,7 @@ export function gerarModeloEntradaCsv(): string {
 export function gerarModeloSaidaCsv(): string {
   const linhas = [
     linhaCsv(["0", "Nome da Empresa LTDA", "00000000000000", "", "", "SAIDA", "20260101", "usuario"]),
-    linhaCsv(["1", "Nome do Fornecedor", "Categoria Exemplo", "500.00", "Boleto", "20260101", "TOTAL"]),
+    linhaCsv(["1", "Nome do Fornecedor", "Categoria Exemplo", "500.00", "Boleto", "20260101", "CONFIRMADO"]),
     linhaCsv(["9", "1", "500.00"]),
   ];
 

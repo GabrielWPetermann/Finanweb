@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sistema Financeiro",
+  title: "Finanweb",
   description: "Integração de arquivos financeiros via CSV",
 };
 

@@ -16,6 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <nav className="topbar-nav">
           <Link href="/">Dashboard</Link>
           <Link href="/integrar">Integrar</Link>
+          <Link href="/documentacao">Documentação</Link>
           <Link href="/recebimentos">Recebimentos</Link>
           <Link href="/pagamentos">Pagamentos</Link>
           <Link href="/historico">Histórico</Link>

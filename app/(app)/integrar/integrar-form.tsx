@@ -34,7 +34,7 @@ export function IntegrarForm() {
         <p className="sucesso">
           Importado com sucesso: {resultado.qtdRegistros} registro(s), valor total{" "}
           {resultado.valorTotal?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-          {resultado.qtdIgnorados ? ` — ${resultado.qtdIgnorados} linha(s) ignorada(s) (canceladas).` : ""}
+          {resultado.qtdIgnorados ? ` - ${resultado.qtdIgnorados} linha(s) ignorada(s) (canceladas).` : ""}
         </p>
       )}
     </form>
