@@ -1,0 +1,95 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum TipoImportacao {
+  ENTRADA
+  SAIDA
+}
+
+model Usuario {
+  id          String       @id @default(cuid())
+  username    String       @unique
+  senha       String // texto simples -- sem hash, comparacao direta (decisao explicita do projeto)
+  nomeEquipe  String
+  role        Role         @default(USER)
+  ativo       Boolean      @default(true)
+  criadoEm    DateTime     @default(now())
+  importacoes Importacao[]
+}
+
+model Categoria {
+  id       String            @id @default(cuid())
+  nome     String
+  tipo     TipoImportacao
+  ativo    Boolean           @default(true)
+  criadoEm DateTime          @default(now())
+  pedidos  PedidoAgrupado[]
+  despesas DespesaAgrupada[]
+
+  @@unique([nome, tipo])
+  @@index([tipo])
+}
+
+model Importacao {
+  id                  String            @id @default(cuid())
+  tipo                TipoImportacao
+  nomeArquivo         String
+  blobUrl             String
+  usuarioId           String
+  usuario             Usuario           @relation(fields: [usuarioId], references: [id])
+  dataArquivoOriginal DateTime?
+  qtdRegistros        Int
+  valorTotal          Decimal           @db.Decimal(14, 2)
+  criadoEm            DateTime          @default(now())
+  pedidos             PedidoAgrupado[]
+  despesas            DespesaAgrupada[]
+}
+
+model PedidoAgrupado {
+  id                 String     @id @default(cuid())
+  importacaoId       String
+  importacao         Importacao @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
+  cliente            String
+  categoriaId        String
+  categoria          Categoria  @relation(fields: [categoriaId], references: [id])
+  subtotal           Decimal    @db.Decimal(14, 2)
+  descontoPercentual Decimal    @db.Decimal(6, 2)
+  descontoValor      Decimal    @db.Decimal(14, 2)
+  frete              Decimal    @db.Decimal(14, 2)
+  valorTotal         Decimal    @db.Decimal(14, 2)
+  formaPagamento     String
+  dataPedido         DateTime
+  status             String
+
+  @@index([cliente])
+  @@index([dataPedido])
+  @@index([categoriaId])
+}
+
+model DespesaAgrupada {
+  id             String     @id @default(cuid())
+  importacaoId   String
+  importacao     Importacao @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
+  fornecedor     String
+  categoriaId    String
+  categoria      Categoria  @relation(fields: [categoriaId], references: [id])
+  valor          Decimal    @db.Decimal(14, 2)
+  formaPagamento String
+  dataPagamento  DateTime
+  status         String
+
+  @@index([fornecedor])
+  @@index([dataPagamento])
+  @@index([categoriaId])
+}
