@@ -4,8 +4,9 @@ export default function DocumentacaoPage() {
       <h1>Documentação</h1>
       <p className="subtitulo">
         Como montar os arquivos CSV de Entrada e Saída aceitos pelo sistema. Se preferir começar de um arquivo
-        pronto, tem modelo pra baixar na tela de{" "}
-        <a href="/integrar">Integrar</a>.
+        pronto, tem modelo pra baixar na tela de <a href="/integrar">Integrar</a>. E se não quiser mexer com
+        CSV nenhum, dá pra lançar tudo direto pelas telas de <a href="/recebimentos">Recebimentos</a> e{" "}
+        <a href="/pagamentos">Pagamentos</a> — o CSV é um atalho pra lançar em lote, não uma obrigação.
       </p>
 
       <h2>Isso não é um CSV &quot;com cabeçalho&quot; comum</h2>
@@ -32,7 +33,7 @@ Bruno,2000`}</pre>
 1,Bruno,Vendas,2000.00,...
 9,2,3000.00`}</pre>
           <p className="subtitulo">
-            Não tem linha de título. Toda linha é dado,  o primeiro valor de cada uma diz o tipo dela (0, 1 ou
+            Não tem linha de título. Toda linha é dado, o primeiro valor de cada uma diz o tipo dela (0, 1 ou
             9), não a posição no arquivo.
           </p>
         </section>
@@ -55,77 +56,389 @@ Bruno,2000`}</pre>
         <tbody>
           <tr>
             <td>0</td>
-            <td>Cabeçalho dados da empresa e do arquivo</td>
+            <td>Cabeçalho, dados da empresa e do arquivo</td>
             <td>Uma vez, no início</td>
           </tr>
           <tr>
             <td>1</td>
-            <td>Detalhe - uma linha por cliente (Entrada) ou por fornecedor (Saída)</td>
+            <td>Detalhe, uma linha por cliente (Entrada) ou por fornecedor (Saída)</td>
             <td>Uma por registro</td>
           </tr>
           <tr>
             <td>9</td>
-            <td>Totalizador - quantidade de registros e a soma do valor total</td>
+            <td>Totalizador, quantidade de registros e a soma do valor total</td>
             <td>Uma vez, no final</td>
           </tr>
         </tbody>
       </table>
       <p className="subtitulo">
         Exemplo: <code>9,1,1000.00</code> quer dizer &quot;1 registro no total, somando R$ 1000,00&quot;. O
-        parser ignora qualquer linha cujo <code>tipo_registro</code> não seja 0, 1 ou 9.
+        parser ignora qualquer linha cujo <code>tipo_registro</code> não seja 0, 1 ou 9, e rejeita o arquivo se
+        alguma linha tiver a quantidade errada de campos.
       </p>
 
       <h2>Formato de Entrada</h2>
       <p className="subtitulo">Vendas/recebimentos, agrupados por cliente.</p>
+
+      <h3>Linha 0, cabeçalho (10 campos)</h3>
       <table>
         <thead>
           <tr>
-            <th>Linha</th>
-            <th>Colunas, na ordem</th>
+            <th>#</th>
+            <th>Campo</th>
+            <th>Formato</th>
+            <th>Obrigatório</th>
+            <th>Observação</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>0</td>
-            <td>
-              tipo_registro, nome_empresa, cnpj, (4 campos vazios), tipo_documento, data_arquivo, usuario
-            </td>
+            <td>1</td>
+            <td>tipo_registro</td>
+            <td>fixo &quot;0&quot;</td>
+            <td>sim</td>
+            <td>identifica a linha como cabeçalho</td>
           </tr>
           <tr>
-            <td>1</td>
-            <td>
-              tipo_registro, cliente, categoria, subtotal, desconto_percentual, desconto_valor, frete,
-              valor_total, forma_pagamento, data_pedido, status
-            </td>
+            <td>2</td>
+            <td>nome_empresa</td>
+            <td>texto</td>
+            <td>sim</td>
+            <td>não é gravado no banco, só informativo</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>cnpj</td>
+            <td>texto/número</td>
+            <td>sim</td>
+            <td>não é validado, não é gravado no banco</td>
+          </tr>
+          <tr>
+            <td>4 a 7</td>
+            <td>(reservados)</td>
+            <td>vazio</td>
+            <td>sim (vazios)</td>
+            <td>4 campos vazios, mantenha as vírgulas</td>
+          </tr>
+          <tr>
+            <td>8</td>
+            <td>tipo_documento</td>
+            <td>texto</td>
+            <td>sim</td>
+            <td>não é gravado no banco, só informativo</td>
           </tr>
           <tr>
             <td>9</td>
-            <td>tipo_registro, qtd_registros, valor_total_geral</td>
+            <td>data_arquivo</td>
+            <td>AAAAMMDD</td>
+            <td>sim</td>
+            <td>vira a &quot;data do arquivo&quot; exibida em Histórico</td>
+          </tr>
+          <tr>
+            <td>10</td>
+            <td>usuario</td>
+            <td>texto</td>
+            <td>sim</td>
+            <td>não é gravado no banco, só informativo</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Linha 1, detalhe por cliente (11 campos)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Campo</th>
+            <th>Formato</th>
+            <th>Obrigatório</th>
+            <th>Observação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>tipo_registro</td>
+            <td>fixo &quot;1&quot;</td>
+            <td>sim</td>
+            <td>identifica a linha como detalhe</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>cliente</td>
+            <td>texto, sem vírgula</td>
+            <td>sim</td>
+            <td>nome do cliente</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>categoria</td>
+            <td>texto, sem vírgula</td>
+            <td>sim</td>
+            <td>criada automaticamente se ainda não existir</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>subtotal</td>
+            <td>número decimal (ex: 1000.00)</td>
+            <td>sim</td>
+            <td>valor antes de desconto e frete</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>desconto_percentual</td>
+            <td>número decimal</td>
+            <td>sim (pode ser 0)</td>
+            <td>percentual de desconto</td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>desconto_valor</td>
+            <td>número decimal</td>
+            <td>sim (pode ser 0)</td>
+            <td>desconto em reais</td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td>frete</td>
+            <td>número decimal</td>
+            <td>sim (pode ser 0)</td>
+            <td>valor do frete</td>
+          </tr>
+          <tr>
+            <td>8</td>
+            <td>valor_total</td>
+            <td>número decimal</td>
+            <td>sim</td>
+            <td>valor que efetivamente entra no saldo</td>
+          </tr>
+          <tr>
+            <td>9</td>
+            <td>forma_pagamento</td>
+            <td>texto</td>
+            <td>sim</td>
+            <td>livre (Pix, Boleto, Cartão...)</td>
+          </tr>
+          <tr>
+            <td>10</td>
+            <td>data_pedido</td>
+            <td>AAAAMMDD</td>
+            <td>sim</td>
+            <td>8 dígitos, sem separador</td>
+          </tr>
+          <tr>
+            <td>11</td>
+            <td>status</td>
+            <td>texto</td>
+            <td>sim</td>
+            <td>
+              livre, exceto <code>CANCELADO</code> (ignora a linha)
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Linha 9, totalizador (3 campos)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Campo</th>
+            <th>Formato</th>
+            <th>Obrigatório</th>
+            <th>Observação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>tipo_registro</td>
+            <td>fixo &quot;9&quot;</td>
+            <td>sim</td>
+            <td>identifica a linha como totalizador</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>qtd_registros</td>
+            <td>número inteiro</td>
+            <td>sim</td>
+            <td>não é conferido contra a contagem real de linhas</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>valor_total_geral</td>
+            <td>número decimal</td>
+            <td>sim</td>
+            <td>não é conferido contra a soma real</td>
           </tr>
         </tbody>
       </table>
 
       <h2>Formato de Saída</h2>
       <p className="subtitulo">Despesas/pagamentos, agrupados por fornecedor.</p>
+
+      <h3>Linha 0, cabeçalho (8 campos)</h3>
       <table>
         <thead>
           <tr>
-            <th>Linha</th>
-            <th>Colunas, na ordem</th>
+            <th>#</th>
+            <th>Campo</th>
+            <th>Formato</th>
+            <th>Obrigatório</th>
+            <th>Observação</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>0</td>
-            <td>tipo_registro, nome_empresa, cnpj, (2 campos vazios), tipo_documento, data_arquivo, usuario</td>
+            <td>1</td>
+            <td>tipo_registro</td>
+            <td>fixo &quot;0&quot;</td>
+            <td>sim</td>
+            <td>identifica a linha como cabeçalho</td>
           </tr>
+          <tr>
+            <td>2</td>
+            <td>nome_empresa</td>
+            <td>texto</td>
+            <td>sim</td>
+            <td>não é gravado no banco, só informativo</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>cnpj</td>
+            <td>texto/número</td>
+            <td>sim</td>
+            <td>não é validado, não é gravado no banco</td>
+          </tr>
+          <tr>
+            <td>4 e 5</td>
+            <td>(reservados)</td>
+            <td>vazio</td>
+            <td>sim (vazios)</td>
+            <td>2 campos vazios, mantenha as vírgulas</td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>tipo_documento</td>
+            <td>texto</td>
+            <td>sim</td>
+            <td>não é gravado no banco, só informativo</td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td>data_arquivo</td>
+            <td>AAAAMMDD</td>
+            <td>sim</td>
+            <td>vira a &quot;data do arquivo&quot; exibida em Histórico</td>
+          </tr>
+          <tr>
+            <td>8</td>
+            <td>usuario</td>
+            <td>texto</td>
+            <td>sim</td>
+            <td>não é gravado no banco, só informativo</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Linha 1, detalhe por fornecedor (7 campos)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Campo</th>
+            <th>Formato</th>
+            <th>Obrigatório</th>
+            <th>Observação</th>
+          </tr>
+        </thead>
+        <tbody>
           <tr>
             <td>1</td>
-            <td>tipo_registro, fornecedor, categoria, valor, forma_pagamento, data_pagamento, status</td>
+            <td>tipo_registro</td>
+            <td>fixo &quot;1&quot;</td>
+            <td>sim</td>
+            <td>identifica a linha como detalhe</td>
           </tr>
           <tr>
-            <td>9</td>
-            <td>tipo_registro, qtd_registros, valor_total_geral</td>
+            <td>2</td>
+            <td>fornecedor</td>
+            <td>texto, sem vírgula</td>
+            <td>sim</td>
+            <td>nome do fornecedor</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>categoria</td>
+            <td>texto, sem vírgula</td>
+            <td>sim</td>
+            <td>criada automaticamente se ainda não existir</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>valor</td>
+            <td>número decimal</td>
+            <td>sim</td>
+            <td>valor que efetivamente entra no saldo</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>forma_pagamento</td>
+            <td>texto</td>
+            <td>sim</td>
+            <td>livre (Pix, Boleto, Cartão...)</td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>data_pagamento</td>
+            <td>AAAAMMDD</td>
+            <td>sim</td>
+            <td>8 dígitos, sem separador</td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td>status</td>
+            <td>texto</td>
+            <td>sim</td>
+            <td>
+              livre, exceto <code>CANCELADO</code> (ignora a linha)
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Linha 9, totalizador (3 campos)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Campo</th>
+            <th>Formato</th>
+            <th>Obrigatório</th>
+            <th>Observação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>tipo_registro</td>
+            <td>fixo &quot;9&quot;</td>
+            <td>sim</td>
+            <td>identifica a linha como totalizador</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>qtd_registros</td>
+            <td>número inteiro</td>
+            <td>sim</td>
+            <td>não é conferido contra a contagem real de linhas</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>valor_total_geral</td>
+            <td>número decimal</td>
+            <td>sim</td>
+            <td>não é conferido contra a soma real</td>
           </tr>
         </tbody>
       </table>
@@ -134,22 +447,31 @@ Bruno,2000`}</pre>
       <ul>
         <li>
           <strong>Datas</strong> vão no formato <code>AAAAMMDD</code>, sem separador (ex: 13/08/2026 vira{" "}
-          <code>20260813</code>).
+          <code>20260813</code>). Qualquer outro formato é rejeitado na importação.
         </li>
         <li>
-          <strong>Categoria</strong> é livre, se o nome citado no arquivo ainda não existe no sistema (para
-          aquele tipo, Entrada ou Saída), ela é criada automaticamente na hora da importação. Pra renomear uma
-          categoria depois, solicite a um administrador.
+          <strong>Números decimais</strong> usam ponto, não vírgula (ex: <code>1000.00</code>, não{" "}
+          <code>1000,00</code>). Nas telas de Recebimentos e Pagamentos, tanto ponto quanto vírgula funcionam.
         </li>
         <li>
-          <strong>Status</strong>: o último campo da linha tipo 1 é o status do registro, use o que fizer
-          sentido pro seu processo (<code>CONFIRMADO</code>, <code>PENDENTE</code>, etc.). O único valor que o
-          sistema trata de forma especial é <code>CANCELADO</code>: registros com esse status são ignorados na
-          importação (não entram no saldo). Qualquer outro texto é só guardado, sem efeito no cálculo.
+          <strong>Categoria</strong> é livre, se o nome citado ainda não existe no sistema (para aquele tipo,
+          Entrada ou Saída), ela é criada automaticamente. Pra renomear uma categoria depois, é em Admin →
+          Categorias.
+        </li>
+        <li>
+          <strong>Status</strong>: use o que fizer sentido pro seu processo (<code>CONFIRMADO</code>,{" "}
+          <code>PENDENTE</code>, etc.). O único valor que o sistema trata de forma especial é{" "}
+          <code>CANCELADO</code>: registros com esse status são ignorados na importação (não entram no saldo).
+          Qualquer outro texto é só guardado, sem efeito no cálculo.
         </li>
         <li>
           <strong>Sem vírgula nos nomes</strong>: o parser separa os campos por vírgula simples, então nomes de
           cliente, fornecedor ou categoria não podem conter vírgula.
+        </li>
+        <li>
+          <strong>Número de campos errado</strong>: se uma linha tiver mais ou menos campos do que o esperado
+          para o tipo dela (por exemplo, subir um arquivo de Saída marcado como Entrada), a importação inteira é
+          rejeitada com uma mensagem apontando a linha.
         </li>
         <li>
           <strong>Regra D+2</strong>: o sistema não recalcula essa regra, ele confia que a data que vem no
@@ -161,9 +483,10 @@ Bruno,2000`}</pre>
           que já foi importado antes.
         </li>
         <li>
-          <strong>Como apagar registros</strong>: o sistema não possui uma funcionalidade para apagar registros 
-          existentes. Solicite para um administrador para que ele faça isso manualmente no banco de dados, caso 
-          seja necessário.
+          <strong>Editar e excluir</strong>: em Recebimentos e Pagamentos dá pra editar qualquer registro
+          (venha de um CSV ou lançado na mão) direto na tabela. Excluir é restrito a administradores. O arquivo
+          original de uma importação, em Histórico, não muda quando você edita os registros dela, ele continua
+          sendo o comprovante do que foi enviado originalmente.
         </li>
       </ul>
     </div>

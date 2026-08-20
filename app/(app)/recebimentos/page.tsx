@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { getUsuarioAtual } from "@/lib/auth";
+import { criarRecebimentoAction } from "./actions";
+import { TabelaRecebimentos, type RecebimentoLinha } from "./tabela-recebimentos";
 
 function formatarMoeda(valor: number) {
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -9,12 +12,19 @@ function formatarData(data: Date) {
   return data.toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
+function paraInputDate(data: Date) {
+  return data.toISOString().slice(0, 10);
+}
+
 interface Props {
   searchParams: Promise<{ categoriaId?: string; cliente?: string; inicio?: string; fim?: string }>;
 }
 
 export default async function RecebimentosPage({ searchParams }: Props) {
   const { categoriaId, cliente, inicio, fim } = await searchParams;
+
+  const usuario = await getUsuarioAtual();
+  const isAdmin = usuario?.role === "ADMIN";
 
   const categorias = await prisma.categoria.findMany({
     where: { tipo: "ENTRADA", ativo: true },
@@ -34,6 +44,22 @@ export default async function RecebimentosPage({ searchParams }: Props) {
     orderBy: { dataPedido: "desc" },
     take: 200,
   });
+
+  const linhas: RecebimentoLinha[] = pedidos.map((p) => ({
+    id: p.id,
+    cliente: p.cliente,
+    categoriaNome: p.categoria.nome,
+    subtotal: p.subtotal.toString(),
+    descontoPercentual: p.descontoPercentual.toString(),
+    descontoValor: p.descontoValor.toString(),
+    frete: p.frete.toString(),
+    valorTotal: p.valorTotal.toString(),
+    formaPagamento: p.formaPagamento,
+    dataPedido: paraInputDate(p.dataPedido),
+    status: p.status,
+    valorFormatado: formatarMoeda(Number(p.valorTotal)),
+    dataFormatada: formatarData(p.dataPedido),
+  }));
 
   return (
     <div>
@@ -69,35 +95,64 @@ export default async function RecebimentosPage({ searchParams }: Props) {
         </Link>
       </form>
 
-      <table>
-        <thead>
-          <tr>
-            <th>Cliente</th>
-            <th>Categoria</th>
-            <th>Data</th>
-            <th>Forma de pagamento</th>
-            <th>Valor total</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {pedidos.map((p) => (
-            <tr key={p.id}>
-              <td>{p.cliente}</td>
-              <td>{p.categoria.nome}</td>
-              <td>{formatarData(p.dataPedido)}</td>
-              <td>{p.formaPagamento}</td>
-              <td>{formatarMoeda(Number(p.valorTotal))}</td>
-              <td>{p.status}</td>
-            </tr>
+      <TabelaRecebimentos
+        pedidos={linhas}
+        categoriasNomes={categorias.map((c) => c.nome)}
+        isAdmin={isAdmin}
+      />
+
+      <h2>Novo recebimento</h2>
+      <p className="subtitulo">Lança um recebimento direto, sem precisar importar um CSV.</p>
+      <form action={criarRecebimentoAction} className="card card-formulario">
+        <div className="grid-2">
+          <label>
+            Cliente
+            <input type="text" name="cliente" required />
+          </label>
+          <label>
+            Categoria
+            <input type="text" name="categoria" list="categorias-entrada-novo" required />
+          </label>
+          <label>
+            Valor total
+            <input type="text" name="valorTotal" placeholder="1500.00" required />
+          </label>
+          <label>
+            Subtotal (opcional, padrão = valor total)
+            <input type="text" name="subtotal" placeholder="1500.00" />
+          </label>
+          <label>
+            Desconto (%)
+            <input type="text" name="descontoPercentual" placeholder="0" />
+          </label>
+          <label>
+            Desconto (R$)
+            <input type="text" name="descontoValor" placeholder="0.00" />
+          </label>
+          <label>
+            Frete
+            <input type="text" name="frete" placeholder="0.00" />
+          </label>
+          <label>
+            Forma de pagamento
+            <input type="text" name="formaPagamento" placeholder="Pix, Boleto..." required />
+          </label>
+          <label>
+            Data
+            <input type="date" name="dataPedido" required />
+          </label>
+          <label>
+            Status
+            <input type="text" name="status" placeholder="CONFIRMADO" />
+          </label>
+        </div>
+        <datalist id="categorias-entrada-novo">
+          {categorias.map((c) => (
+            <option key={c.id} value={c.nome} />
           ))}
-          {pedidos.length === 0 && (
-            <tr>
-              <td colSpan={6}>Nenhum registro encontrado.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+        </datalist>
+        <button type="submit">Lançar</button>
+      </form>
     </div>
   );
 }

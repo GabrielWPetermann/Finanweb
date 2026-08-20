@@ -215,6 +215,22 @@ button[type="button"]:hover {
   color: var(--cor-primaria);
 }
 
+.botao-perigo {
+  background: var(--cor-superficie);
+  color: var(--cor-negativo);
+  border: 1px solid var(--cor-negativo);
+}
+
+.botao-perigo:hover {
+  background: var(--cor-erro-fundo);
+}
+
+.linha-acoes {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 /* Cartoes e formularios */
 
 .card {
@@ -227,6 +243,10 @@ button[type="button"]:hover {
   flex-direction: column;
   gap: 12px;
   max-width: 420px;
+}
+
+.card-formulario {
+  max-width: 720px;
 }
 
 .cards {
@@ -446,6 +466,11 @@ dialog form {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.dialog-registro {
+  width: 100%;
+  max-width: 640px;
 }
 
 /* Login */

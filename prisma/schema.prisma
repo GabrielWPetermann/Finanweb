@@ -57,17 +57,18 @@ model Importacao {
 }
 
 model PedidoAgrupado {
-  id                 String     @id @default(cuid())
-  importacaoId       String
-  importacao         Importacao @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
+  id                 String      @id @default(cuid())
+  // Nulo quando o registro foi lancado manualmente na tela (sem CSV).
+  importacaoId       String?
+  importacao         Importacao? @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
   cliente            String
   categoriaId        String
-  categoria          Categoria  @relation(fields: [categoriaId], references: [id])
-  subtotal           Decimal    @db.Decimal(14, 2)
-  descontoPercentual Decimal    @db.Decimal(6, 2)
-  descontoValor      Decimal    @db.Decimal(14, 2)
-  frete              Decimal    @db.Decimal(14, 2)
-  valorTotal         Decimal    @db.Decimal(14, 2)
+  categoria          Categoria   @relation(fields: [categoriaId], references: [id])
+  subtotal           Decimal     @db.Decimal(14, 2)
+  descontoPercentual Decimal     @db.Decimal(6, 2)
+  descontoValor      Decimal     @db.Decimal(14, 2)
+  frete              Decimal     @db.Decimal(14, 2)
+  valorTotal         Decimal     @db.Decimal(14, 2)
   formaPagamento     String
   dataPedido         DateTime
   status             String
@@ -78,13 +79,14 @@ model PedidoAgrupado {
 }
 
 model DespesaAgrupada {
-  id             String     @id @default(cuid())
-  importacaoId   String
-  importacao     Importacao @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
+  id             String      @id @default(cuid())
+  // Nulo quando o registro foi lancado manualmente na tela (sem CSV).
+  importacaoId   String?
+  importacao     Importacao? @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
   fornecedor     String
   categoriaId    String
-  categoria      Categoria  @relation(fields: [categoriaId], references: [id])
-  valor          Decimal    @db.Decimal(14, 2)
+  categoria      Categoria   @relation(fields: [categoriaId], references: [id])
+  valor          Decimal     @db.Decimal(14, 2)
   formaPagamento String
   dataPagamento  DateTime
   status         String
