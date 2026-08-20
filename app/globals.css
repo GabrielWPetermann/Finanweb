@@ -31,6 +31,40 @@ body {
   line-height: 1.5;
 }
 
+.bloqueio-mobile {
+  display: none;
+}
+
+@media (max-width: 768px), (max-height: 480px) {
+  .app-shell {
+    display: none;
+  }
+
+  .bloqueio-mobile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    min-height: 100vh;
+    padding: 32px;
+    text-align: center;
+    background: var(--cor-fundo);
+    color: var(--cor-texto-suave);
+  }
+
+  .bloqueio-mobile-carinha {
+    font-size: 48px;
+    color: var(--cor-texto);
+  }
+
+  .bloqueio-mobile p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+}
+
 a {
   color: var(--cor-primaria);
 }

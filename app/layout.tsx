@@ -9,7 +9,17 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        <div className="app-shell">{children}</div>
+        <div className="bloqueio-mobile">
+          <span className="bloqueio-mobile-carinha">:(</span>
+          <p>
+            Não temos visualização mobile.
+            <br />
+            Abra o sistema no seu computador.
+          </p>
+        </div>
+      </body>
     </html>
   );
 }
