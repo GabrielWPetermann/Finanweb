@@ -49,7 +49,7 @@ export async function importarAction(
     }
 
     const blob = await put(`entradas/${Date.now()}-${arquivo.name}`, conteudo, {
-      access: "public",
+      access: "private",
       contentType: "text/csv",
     });
 
@@ -109,7 +109,7 @@ export async function importarAction(
   }
 
   const blob = await put(`saidas/${Date.now()}-${arquivo.name}`, conteudo, {
-    access: "public",
+    access: "private",
     contentType: "text/csv",
   });
 

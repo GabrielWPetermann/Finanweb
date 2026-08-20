@@ -12,7 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="layout">
       <header className="topbar">
-        <div className="topbar-brand">Sistema Financeiro</div>
+        <div className="topbar-brand">Finanweb</div>
         <nav className="topbar-nav">
           <Link href="/">Dashboard</Link>
           <Link href="/integrar">Integrar</Link>

@@ -10,7 +10,7 @@ export default async function LoginPage({ searchParams }: Props) {
   return (
     <div className="login-page">
       <form action={loginAction} className="card login-card">
-        <h1>Sistema Financeiro</h1>
+        <h1>Finanweb</h1>
         {erro && <p className="erro">Usuário ou senha inválidos.</p>}
         <label>
           Usuário

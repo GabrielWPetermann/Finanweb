@@ -1,4 +1,4 @@
-# Sistema Financeiro
+# Finanweb
 
 Sistema web que simula o setor financeiro de uma empresa: recebe arquivos CSV
 de Entrada (vendas/recebimentos) e Saída (despesas/pagamentos) através de uma

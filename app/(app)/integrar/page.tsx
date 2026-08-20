@@ -5,6 +5,19 @@ export default function IntegrarPage() {
     <div>
       <h1>Integrar arquivo</h1>
       <p className="subtitulo">Envie um arquivo CSV de Entrada ou Saída no formato padrão.</p>
+
+      <div className="card">
+        <span className="card-label">Não sabe o formato? Baixe um modelo já pronto e preencha em cima dele:</span>
+        <div className="linha-form">
+          <a href="/integrar/modelo?tipo=ENTRADA" className="link-button">
+            Modelo de Entrada
+          </a>
+          <a href="/integrar/modelo?tipo=SAIDA" className="link-button">
+            Modelo de Saída
+          </a>
+        </div>
+      </div>
+
       <IntegrarForm />
     </div>
   );

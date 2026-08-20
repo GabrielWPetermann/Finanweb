@@ -42,9 +42,7 @@ export default async function HistoricoPage() {
               <td>{imp.qtdRegistros}</td>
               <td>{formatarMoeda(Number(imp.valorTotal))}</td>
               <td>
-                <a href={imp.blobUrl} target="_blank" rel="noreferrer">
-                  Baixar
-                </a>
+                <a href={`/historico/download?id=${imp.id}`}>Baixar</a>
               </td>
             </tr>
           ))}
