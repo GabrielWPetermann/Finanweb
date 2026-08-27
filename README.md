@@ -1,9 +1,10 @@
 # Finanweb
 
 Sistema web que simula o setor financeiro de uma empresa: recebe arquivos CSV
-de Entrada (vendas/recebimentos) e Saída (despesas/pagamentos) através de uma
-tela de upload, e gera dashboard de saldo, listagens filtráveis, histórico de
-importações e relatórios exportáveis.
+de Entrada (vendas/recebimentos), Saída (despesas/pagamentos) e cadastro de
+Clientes/Fornecedores através de uma tela de upload, e gera dashboard de
+saldo, listagens filtráveis, histórico de importações e relatórios
+exportáveis.
 
 Projeto feito para a disciplina de **Interoperabilidade**. O foco é o parsing
 manual do arquivo, por isso não uso nenhuma lib de CSV. Segurança não é o
@@ -38,11 +39,18 @@ Abaixo está a estrutura exata que o sistema espera para cada tipo de
 arquivo, qualquer gerador de CSV (script, planilha, outro sistema) precisa
 produzir essas colunas, nessa ordem, para ser aceito no `/integrar`.
 
-Os dois formatos seguem a mesma lógica: 3 tipos de linha identificados pela
-primeira coluna (`tipo_registro`), sem cabeçalho de coluna nomeada, posição
-fixa. O parser faz `linha.split(",")` simples, sem suporte a aspas ou
-vírgula dentro de campo, já que o próprio formato assume que nomes de
-cliente/fornecedor/categoria não têm vírgula.
+Tem dois estilos de arquivo, dependendo do que é importado:
+
+- **Entrada e Saída** (movimentação financeira): 3 tipos de linha
+  identificados pela primeira coluna (`tipo_registro`), sem cabeçalho de
+  coluna nomeada, posição fixa.
+- **Clientes e Fornecedores** (cadastro): CSV comum, com cabeçalho de coluna
+  nomeada na primeira linha e uma linha por registro — não tem totalizador
+  porque não é transação, é dado mestre.
+
+Em ambos os estilos, o parser faz `linha.split(",")` simples, sem suporte a
+aspas ou vírgula dentro de campo, já que o próprio formato assume que nomes
+de cliente/fornecedor/categoria não têm vírgula.
 
 ### Entrada (vendas/recebimentos, agrupados por cliente)
 
@@ -72,16 +80,46 @@ tipo_registro,fornecedor,documento,categoria,valor,forma_pagamento,data_pagament
 - **Linha `1`** (detalhe, uma por fornecedor): `tipo_registro,fornecedor,documento,categoria,valor,forma_pagamento,data_pagamento,status`
 - **Linha `9`**: `tipo_registro,qtd_registros,valor_total_geral`
 
+### Clientes e Fornecedores (importação de cadastro)
+
+Formato bem mais simples que Entrada/Saída — CSV comum, com cabeçalho:
+
+```
+nome,documento,email,telefone
+Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888
+```
+
+- **`nome`**: obrigatório.
+- **`documento`, `email`, `telefone`**: opcionais (podem ficar vazios).
+- Formato idêntico pra Clientes e Fornecedores — só muda o tipo escolhido no
+  `/integrar` (Clientes ou Fornecedores), que decide se os registros do
+  arquivo vão pro cadastro de cliente ou de fornecedor.
+
+Comportamento na importação, por linha:
+
+- Se **`documento` preenchido e já existe** um cadastro com esse documento
+  (do tipo certo): **atualiza** nome, e-mail e telefone (um campo vindo em
+  branco no arquivo não apaga o que já estava salvo).
+- Senão: **cria** um cadastro novo.
+
+Ou seja, essa importação serve tanto pra carregar uma lista nova quanto pra
+atualizar em lote os dados de contato de cadastros que já existem. Ela não
+gera registro em Histórico nem some no saldo — é só cadastro, não afeta
+nenhum valor financeiro.
+
 ### Cadastros (clientes e fornecedores)
 
 Cliente e fornecedor não são mais texto solto: são um cadastro (`Parceiro`,
 com nome, documento, e-mail e telefone), gerenciável em `/admin/cadastros`.
 A forma de resolver esse cadastro depende de onde o dado entra:
 
-- **Pelo CSV**: casa pelo campo `documento` (CNPJ/CPF), que é obrigatório em
-  ambos os formatos. Se já existe um cadastro com aquele documento (para o
-  tipo certo, cliente ou fornecedor), reaproveita; senão, cria um novo com o
-  nome que veio no arquivo.
+- **Pelo CSV de Entrada/Saída**: casa pelo campo `documento` (CNPJ/CPF), que
+  é obrigatório em ambos os formatos. Se já existe um cadastro com aquele
+  documento (para o tipo certo, cliente ou fornecedor), reaproveita; senão,
+  cria um novo com o nome que veio no arquivo — sem preencher e-mail/
+  telefone.
+- **Pelo CSV dedicado de Clientes/Fornecedores** (seção acima): cria ou
+  atualiza o cadastro completo, incluindo e-mail e telefone.
 - **Pelas telas de Recebimentos/Pagamentos**: é obrigatório escolher um
   cadastro já existente num seletor; se ainda não existe, dá pra criar um
   novo rápido direto ali (só com o nome — documento, e-mail e telefone
@@ -120,7 +158,7 @@ simples) ou cadastrar uma nova manualmente.
 |---|---|---|
 | `/login` | Login (username + senha) | público |
 | `/` | Dashboard: saldo geral, top clientes, top fornecedores | autenticado |
-| `/integrar` | Upload de CSV (Entrada ou Saída) | autenticado |
+| `/integrar` | Upload de CSV (Entrada, Saída, Clientes ou Fornecedores) | autenticado |
 | `/recebimentos` | Recebimentos (de CSV ou lançados na mão): listar, filtrar, criar, editar; excluir é ADMIN | autenticado |
 | `/pagamentos` | Pagamentos (de CSV ou lançados na mão): listar, filtrar, criar, editar; excluir é ADMIN | autenticado |
 | `/historico` | Log de arquivos importados, com link de download do CSV original | autenticado |

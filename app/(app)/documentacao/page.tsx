@@ -457,6 +457,67 @@ Bruno,2000`}</pre>
         </tbody>
       </table>
 
+      <h2>Importação de Clientes e Fornecedores (cadastro)</h2>
+      <p className="subtitulo">
+        Um formato bem mais simples — é cadastro (dado mestre), não movimentação financeira, então não usa a
+        lógica de <code>tipo_registro</code> nem tem totalizador.
+      </p>
+      <pre>{`nome,documento,email,telefone
+Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Campo</th>
+            <th>Formato</th>
+            <th>Obrigatório</th>
+            <th>Observação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>nome</td>
+            <td>texto, sem vírgula</td>
+            <td>sim</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>documento</td>
+            <td>texto (CNPJ/CPF)</td>
+            <td>não</td>
+            <td>se preenchido e já existir, a linha atualiza aquele cadastro em vez de criar um novo</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>email</td>
+            <td>texto</td>
+            <td>não</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>telefone</td>
+            <td>texto</td>
+            <td>não</td>
+            <td>-</td>
+          </tr>
+        </tbody>
+      </table>
+      <p className="subtitulo">
+        A primeira linha é mesmo um cabeçalho de coluna nomeada, precisa ser exatamente{" "}
+        <code>nome,documento,email,telefone</code> — esse formato é o único do sistema que funciona assim (os
+        de Entrada e Saída não têm cabeçalho, ver seção acima). O tipo (Clientes ou Fornecedores) é escolhido
+        no <a href="/integrar">Integrar</a>, não vem dentro do arquivo — o mesmo formato serve pros dois.
+      </p>
+      <p className="subtitulo">
+        Regra de importação, linha por linha: se <code>documento</code> veio preenchido e já existe um
+        cadastro com esse documento (do tipo certo), a linha <strong>atualiza</strong> nome/e-mail/telefone
+        daquele cadastro — um campo vazio no arquivo não apaga o que já estava salvo. Caso contrário,{" "}
+        <strong>cria</strong> um cadastro novo. Não gera registro em Histórico nem afeta saldo.
+      </p>
+
       <h2>Cadastro de cliente e fornecedor</h2>
       <p>
         Cliente e fornecedor não são texto solto: são um cadastro (nome, documento, e-mail, telefone),
@@ -465,9 +526,13 @@ Bruno,2000`}</pre>
       </p>
       <ul>
         <li>
-          <strong>Pelo CSV</strong>: casa pelo campo <code>documento</code> — se já existe um cadastro com
-          aquele documento (do tipo certo, cliente ou fornecedor), reaproveita; senão, cria um novo com o nome
-          que veio no arquivo.
+          <strong>Pelo CSV de Entrada/Saída</strong>: casa pelo campo <code>documento</code> — se já existe um
+          cadastro com aquele documento (do tipo certo, cliente ou fornecedor), reaproveita; senão, cria um
+          novo com o nome que veio no arquivo, sem e-mail/telefone.
+        </li>
+        <li>
+          <strong>Pelo CSV dedicado de Clientes/Fornecedores</strong> (seção acima): cria ou atualiza o
+          cadastro completo, incluindo e-mail e telefone.
         </li>
         <li>
           <strong>Pelas telas de Recebimentos/Pagamentos</strong>: é preciso escolher um cadastro já existente

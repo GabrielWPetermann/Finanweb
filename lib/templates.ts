@@ -27,6 +27,24 @@ export function gerarModeloEntradaCsv(): string {
   return montarCsv(linhas);
 }
 
+export function gerarModeloClientesCsv(): string {
+  const linhas = [
+    linhaCsv(["nome", "documento", "email", "telefone"]),
+    linhaCsv(["Cliente Exemplo LTDA", "00011122233", "contato@exemplo.com", "11999998888"]),
+  ];
+
+  return montarCsv(linhas);
+}
+
+export function gerarModeloFornecedoresCsv(): string {
+  const linhas = [
+    linhaCsv(["nome", "documento", "email", "telefone"]),
+    linhaCsv(["Fornecedor Exemplo LTDA", "00099988877000100", "contato@fornecedor.com", "11988887777"]),
+  ];
+
+  return montarCsv(linhas);
+}
+
 export function gerarModeloSaidaCsv(): string {
   const linhas = [
     linhaCsv(["0", "Nome da Empresa LTDA", "00000000000000", "", "", "SAIDA", "20260101", "usuario"]),

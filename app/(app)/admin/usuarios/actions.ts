@@ -23,3 +23,19 @@ export async function alternarAtivoAction(formData: FormData) {
   await prisma.usuario.update({ where: { id }, data: { ativo: !usuario.ativo } });
   revalidatePath("/admin/usuarios");
 }
+
+export async function aprovarUsuarioAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  await prisma.usuario.update({ where: { id }, data: { aprovado: true } });
+  revalidatePath("/admin/usuarios");
+}
+
+export async function recusarUsuarioAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  await prisma.usuario.delete({ where: { id } });
+  revalidatePath("/admin/usuarios");
+}

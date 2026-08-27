@@ -18,6 +18,12 @@ export function IntegrarForm() {
         <label>
           <input type="radio" name="tipo" value="SAIDA" /> Saída
         </label>
+        <label>
+          <input type="radio" name="tipo" value="CLIENTES" /> Clientes (cadastro)
+        </label>
+        <label>
+          <input type="radio" name="tipo" value="FORNECEDORES" /> Fornecedores (cadastro)
+        </label>
       </div>
 
       <div className="campo">
@@ -30,11 +36,17 @@ export function IntegrarForm() {
       </button>
 
       {resultado.erro && <p className="erro">{resultado.erro}</p>}
-      {resultado.ok && (
+      {resultado.ok && resultado.valorTotal !== undefined && (
         <p className="sucesso">
           Importado com sucesso: {resultado.qtdRegistros} registro(s), valor total{" "}
-          {resultado.valorTotal?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+          {resultado.valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
           {resultado.qtdIgnorados ? ` - ${resultado.qtdIgnorados} linha(s) ignorada(s) (canceladas).` : ""}
+        </p>
+      )}
+      {resultado.ok && resultado.valorTotal === undefined && (
+        <p className="sucesso">
+          Cadastro importado: {resultado.qtdRegistros} registro(s) — {resultado.qtdCriados} novo(s),{" "}
+          {resultado.qtdAtualizados} atualizado(s).
         </p>
       )}
     </form>

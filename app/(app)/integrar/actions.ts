@@ -5,7 +5,8 @@ import { prisma } from "@/lib/db";
 import { getUsuarioAtual } from "@/lib/auth";
 import { parseEntradaCsv } from "@/lib/parsers/entrada";
 import { parseSaidaCsv } from "@/lib/parsers/saida";
-import { resolverParceiroPorDocumento } from "@/lib/parceiros";
+import { parseCadastroCsv } from "@/lib/parsers/cadastro";
+import { resolverParceiroPorDocumento, importarParceiroCadastro } from "@/lib/parceiros";
 
 export interface ResultadoImportacao {
   ok: boolean;
@@ -13,6 +14,8 @@ export interface ResultadoImportacao {
   qtdRegistros?: number;
   qtdIgnorados?: number;
   valorTotal?: number;
+  qtdCriados?: number;
+  qtdAtualizados?: number;
 }
 
 function parseDataAAAAMMDD(valor: string): Date {
@@ -42,7 +45,7 @@ export async function importarAction(
   const tipo = String(formData.get("tipo") ?? "");
   const arquivo = formData.get("arquivo");
 
-  if (tipo !== "ENTRADA" && tipo !== "SAIDA") {
+  if (tipo !== "ENTRADA" && tipo !== "SAIDA" && tipo !== "CLIENTES" && tipo !== "FORNECEDORES") {
     return { ok: false, erro: "Selecione o tipo do arquivo." };
   }
   if (!(arquivo instanceof File) || arquivo.size === 0) {
@@ -53,6 +56,40 @@ export async function importarAction(
   }
 
   const conteudo = await arquivo.text();
+
+  if (tipo === "CLIENTES" || tipo === "FORNECEDORES") {
+    const resultadoCadastro = parseCadastroCsv(conteudo);
+    if (resultadoCadastro.erros.length > 0) {
+      return { ok: false, erro: formatarErrosParser(resultadoCadastro.erros) };
+    }
+    if (resultadoCadastro.registros.length === 0) {
+      return { ok: false, erro: "Arquivo sem nenhum registro." };
+    }
+
+    const tipoParceiro = tipo === "CLIENTES" ? "CLIENTE" : "FORNECEDOR";
+    let qtdCriados = 0;
+    let qtdAtualizados = 0;
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (const registro of resultadoCadastro.registros) {
+          const resultadoUpsert = await importarParceiroCadastro(tx, registro, tipoParceiro);
+          if (resultadoUpsert === "criado") qtdCriados++;
+          else qtdAtualizados++;
+        }
+      });
+    } catch (erro) {
+      console.error(erro);
+      return { ok: false, erro: "Não foi possível gravar o cadastro. Tente novamente." };
+    }
+
+    return {
+      ok: true,
+      qtdRegistros: resultadoCadastro.registros.length,
+      qtdCriados,
+      qtdAtualizados,
+    };
+  }
 
   if (tipo === "ENTRADA") {
     const resultado = parseEntradaCsv(conteudo);

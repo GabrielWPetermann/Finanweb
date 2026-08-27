@@ -502,3 +502,7 @@ dialog form {
   text-align: center;
   margin-bottom: 4px;
 }
+
+.login-rodape {
+  text-align: center;
+}

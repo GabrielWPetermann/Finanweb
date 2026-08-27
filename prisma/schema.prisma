@@ -26,9 +26,13 @@ model Usuario {
   id          String       @id @default(cuid())
   username    String       @unique
   senha       String // texto simples -- sem hash, comparacao direta (decisao explicita do projeto)
-  nomeEquipe  String
+  nomeEquipe  String       @default("")
+  whatsapp    String?
   role        Role         @default(USER)
   ativo       Boolean      @default(true)
+  // false = solicitacao de cadastro publica, aguardando aprovacao de um
+  // admin. Usuarios criados via /admin/usuarios ja nascem aprovados.
+  aprovado    Boolean      @default(true)
   criadoEm    DateTime     @default(now())
   importacoes Importacao[]
 }

@@ -7,11 +7,11 @@ export async function loginAction(formData: FormData) {
   const username = String(formData.get("username") ?? "").trim();
   const senha = String(formData.get("senha") ?? "");
 
-  const usuario = await login(username, senha);
-  if (!usuario) {
-    redirect("/login?erro=1");
+  const resultado = await login(username, senha);
+  if (!resultado.ok) {
+    redirect(`/login?erro=${resultado.motivo}`);
   }
 
-  await criarSessao(usuario.id);
+  await criarSessao(resultado.usuario.id);
   redirect("/");
 }
