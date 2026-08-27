@@ -2,10 +2,12 @@
 
 import { useRef, useState } from "react";
 import { editarRecebimentoAction, excluirRecebimentoAction } from "./actions";
+import { SeletorParceiro, type OpcaoParceiro } from "../_components/seletor-parceiro";
 
 export interface RecebimentoLinha {
   id: string;
-  cliente: string;
+  clienteId: string;
+  clienteNome: string;
   categoriaNome: string;
   subtotal: string;
   descontoPercentual: string;
@@ -28,10 +30,12 @@ function confirmarExclusao(evento: React.FormEvent<HTMLFormElement>) {
 export function TabelaRecebimentos({
   pedidos,
   categoriasNomes,
+  clientes,
   isAdmin,
 }: {
   pedidos: RecebimentoLinha[];
   categoriasNomes: string[];
+  clientes: OpcaoParceiro[];
   isAdmin: boolean;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -59,7 +63,7 @@ export function TabelaRecebimentos({
         <tbody>
           {pedidos.map((p) => (
             <tr key={p.id}>
-              <td>{p.cliente}</td>
+              <td>{p.clienteNome}</td>
               <td>{p.categoriaNome}</td>
               <td>{p.dataFormatada}</td>
               <td>{p.formaPagamento}</td>
@@ -96,13 +100,23 @@ export function TabelaRecebimentos({
           <input type="hidden" name="id" value={selecionado?.id ?? ""} />
 
           <div className="grid-2" key={selecionado?.id}>
-            <label>
-              Cliente
-              <input type="text" name="cliente" defaultValue={selecionado?.cliente} required />
-            </label>
+            <SeletorParceiro
+              label="Cliente"
+              campoId="clienteId"
+              campoNomeNovo="clienteNovoNome"
+              opcoes={clientes}
+              valorInicial={selecionado?.clienteId}
+              placeholderNovo="Nome do novo cliente"
+            />
             <label>
               Categoria
-              <input type="text" name="categoria" defaultValue={selecionado?.categoriaNome} list="categorias-entrada-dialog" required />
+              <input
+                type="text"
+                name="categoria"
+                defaultValue={selecionado?.categoriaNome}
+                list="categorias-entrada-dialog"
+                required
+              />
             </label>
             <label>
               Subtotal

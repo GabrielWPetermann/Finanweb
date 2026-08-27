@@ -473,6 +473,16 @@ dialog form {
   max-width: 640px;
 }
 
+.dialog-coluna {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.texto-suave {
+  color: var(--cor-texto-suave);
+}
+
 /* Login */
 
 .login-page {

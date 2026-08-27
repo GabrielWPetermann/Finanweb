@@ -5,22 +5,42 @@ function formatarMoeda(valor: number) {
 }
 
 export default async function DashboardPage() {
-  const [totalEntradas, totalSaidas, porCliente, porFornecedor] = await Promise.all([
+  const [totalEntradas, totalSaidas, porClienteAgrupado, porFornecedorAgrupado] = await Promise.all([
     prisma.pedidoAgrupado.aggregate({ _sum: { valorTotal: true } }),
     prisma.despesaAgrupada.aggregate({ _sum: { valor: true } }),
     prisma.pedidoAgrupado.groupBy({
-      by: ["cliente"],
+      by: ["clienteId"],
       _sum: { valorTotal: true },
       orderBy: { _sum: { valorTotal: "desc" } },
       take: 10,
     }),
     prisma.despesaAgrupada.groupBy({
-      by: ["fornecedor"],
+      by: ["fornecedorId"],
       _sum: { valor: true },
       orderBy: { _sum: { valor: "desc" } },
       take: 10,
     }),
   ]);
+
+  const [clientesEnvolvidos, fornecedoresEnvolvidos] = await Promise.all([
+    prisma.parceiro.findMany({ where: { id: { in: porClienteAgrupado.map((l) => l.clienteId) } } }),
+    prisma.parceiro.findMany({ where: { id: { in: porFornecedorAgrupado.map((l) => l.fornecedorId) } } }),
+  ]);
+
+  const mapaClientes = new Map(clientesEnvolvidos.map((c) => [c.id, c.nome]));
+  const mapaFornecedores = new Map(fornecedoresEnvolvidos.map((f) => [f.id, f.nome]));
+
+  const porCliente = porClienteAgrupado.map((linha) => ({
+    id: linha.clienteId,
+    nome: mapaClientes.get(linha.clienteId) ?? "—",
+    total: Number(linha._sum.valorTotal ?? 0),
+  }));
+
+  const porFornecedor = porFornecedorAgrupado.map((linha) => ({
+    id: linha.fornecedorId,
+    nome: mapaFornecedores.get(linha.fornecedorId) ?? "—",
+    total: Number(linha._sum.valor ?? 0),
+  }));
 
   const entradas = Number(totalEntradas._sum.valorTotal ?? 0);
   const saidas = Number(totalSaidas._sum.valor ?? 0);
@@ -57,9 +77,9 @@ export default async function DashboardPage() {
             </thead>
             <tbody>
               {porCliente.map((linha) => (
-                <tr key={linha.cliente}>
-                  <td>{linha.cliente}</td>
-                  <td>{formatarMoeda(Number(linha._sum.valorTotal ?? 0))}</td>
+                <tr key={linha.id}>
+                  <td>{linha.nome}</td>
+                  <td>{formatarMoeda(linha.total)}</td>
                 </tr>
               ))}
               {porCliente.length === 0 && (
@@ -82,9 +102,9 @@ export default async function DashboardPage() {
             </thead>
             <tbody>
               {porFornecedor.map((linha) => (
-                <tr key={linha.fornecedor}>
-                  <td>{linha.fornecedor}</td>
-                  <td>{formatarMoeda(Number(linha._sum.valor ?? 0))}</td>
+                <tr key={linha.id}>
+                  <td>{linha.nome}</td>
+                  <td>{formatarMoeda(linha.total)}</td>
                 </tr>
               ))}
               {porFornecedor.length === 0 && (

@@ -2,7 +2,7 @@
 // (split simples por virgula, sem lib de CSV). Ver README para o formato.
 
 const CAMPOS_CABECALHO = 8;
-const CAMPOS_DETALHE = 7;
+const CAMPOS_DETALHE = 8;
 const CAMPOS_TOTALIZADOR = 3;
 
 const REGEX_DATA = /^\d{8}$/;
@@ -17,6 +17,7 @@ export interface SaidaCabecalho {
 
 export interface SaidaDespesa {
   fornecedor: string;
+  documento: string;
   categoria: string;
   valor: number;
   formaPagamento: string;
@@ -76,28 +77,35 @@ export function parseSaidaCsv(conteudo: string): SaidaParseResult {
           return;
         }
 
-        const status = campos[6].trim();
+        const status = campos[7].trim();
         if (status.toUpperCase() === "CANCELADO") {
           ignorados++;
           return;
         }
 
-        const valor = Number(campos[3]);
+        const documento = campos[2].trim();
+        if (!documento) {
+          erros.push(`Linha ${numeroLinha}: campo documento (CNPJ/CPF do fornecedor) é obrigatório.`);
+          return;
+        }
+
+        const valor = Number(campos[4]);
         if (Number.isNaN(valor)) {
           erros.push(`Linha ${numeroLinha}: valor inválido.`);
           return;
         }
-        if (!REGEX_DATA.test(campos[5])) {
+        if (!REGEX_DATA.test(campos[6])) {
           erros.push(`Linha ${numeroLinha}: data_pagamento inválida, esperado AAAAMMDD (ex: 20260813).`);
           return;
         }
 
         despesas.push({
           fornecedor: campos[1],
-          categoria: campos[2],
+          documento,
+          categoria: campos[3],
           valor,
-          formaPagamento: campos[4],
-          dataPagamento: campos[5],
+          formaPagamento: campos[5],
+          dataPagamento: campos[6],
           status,
         });
         break;

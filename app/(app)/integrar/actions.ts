@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { getUsuarioAtual } from "@/lib/auth";
 import { parseEntradaCsv } from "@/lib/parsers/entrada";
 import { parseSaidaCsv } from "@/lib/parsers/saida";
+import { resolverParceiroPorDocumento } from "@/lib/parceiros";
 
 export interface ResultadoImportacao {
   ok: boolean;
@@ -91,11 +92,12 @@ export async function importarAction(
             create: { nome: pedido.categoria, tipo: "ENTRADA" },
             update: {},
           });
+          const cliente = await resolverParceiroPorDocumento(tx, pedido.cliente, pedido.documento, "CLIENTE");
 
           await tx.pedidoAgrupado.create({
             data: {
               importacaoId: importacao.id,
-              cliente: pedido.cliente,
+              clienteId: cliente.id,
               categoriaId: categoria.id,
               subtotal: pedido.subtotal,
               descontoPercentual: pedido.descontoPercentual,
@@ -159,11 +161,17 @@ export async function importarAction(
           create: { nome: despesa.categoria, tipo: "SAIDA" },
           update: {},
         });
+        const fornecedor = await resolverParceiroPorDocumento(
+          tx,
+          despesa.fornecedor,
+          despesa.documento,
+          "FORNECEDOR"
+        );
 
         await tx.despesaAgrupada.create({
           data: {
             importacaoId: importacao.id,
-            fornecedor: despesa.fornecedor,
+            fornecedorId: fornecedor.id,
             categoriaId: categoria.id,
             valor: despesa.valor,
             formaPagamento: despesa.formaPagamento,

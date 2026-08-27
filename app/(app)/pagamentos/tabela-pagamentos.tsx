@@ -2,10 +2,12 @@
 
 import { useRef, useState } from "react";
 import { editarPagamentoAction, excluirPagamentoAction } from "./actions";
+import { SeletorParceiro, type OpcaoParceiro } from "../_components/seletor-parceiro";
 
 export interface PagamentoLinha {
   id: string;
-  fornecedor: string;
+  fornecedorId: string;
+  fornecedorNome: string;
   categoriaNome: string;
   valor: string;
   formaPagamento: string;
@@ -24,10 +26,12 @@ function confirmarExclusao(evento: React.FormEvent<HTMLFormElement>) {
 export function TabelaPagamentos({
   despesas,
   categoriasNomes,
+  fornecedores,
   isAdmin,
 }: {
   despesas: PagamentoLinha[];
   categoriasNomes: string[];
+  fornecedores: OpcaoParceiro[];
   isAdmin: boolean;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -55,7 +59,7 @@ export function TabelaPagamentos({
         <tbody>
           {despesas.map((d) => (
             <tr key={d.id}>
-              <td>{d.fornecedor}</td>
+              <td>{d.fornecedorNome}</td>
               <td>{d.categoriaNome}</td>
               <td>{d.dataFormatada}</td>
               <td>{d.formaPagamento}</td>
@@ -92,10 +96,14 @@ export function TabelaPagamentos({
           <input type="hidden" name="id" value={selecionado?.id ?? ""} />
 
           <div className="grid-2" key={selecionado?.id}>
-            <label>
-              Fornecedor
-              <input type="text" name="fornecedor" defaultValue={selecionado?.fornecedor} required />
-            </label>
+            <SeletorParceiro
+              label="Fornecedor"
+              campoId="fornecedorId"
+              campoNomeNovo="fornecedorNovoNome"
+              opcoes={fornecedores}
+              valorInicial={selecionado?.fornecedorId}
+              placeholderNovo="Nome do novo fornecedor"
+            />
             <label>
               Categoria
               <input

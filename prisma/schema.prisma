@@ -17,6 +17,11 @@ enum TipoImportacao {
   SAIDA
 }
 
+enum TipoParceiro {
+  CLIENTE
+  FORNECEDOR
+}
+
 model Usuario {
   id          String       @id @default(cuid())
   username    String       @unique
@@ -41,6 +46,23 @@ model Categoria {
   @@index([tipo])
 }
 
+model Parceiro {
+  id        String       @id @default(cuid())
+  nome      String
+  documento String?
+  email     String?
+  telefone  String?
+  tipo      TipoParceiro
+  ativo     Boolean      @default(true)
+  criadoEm  DateTime     @default(now())
+  pedidos   PedidoAgrupado[]
+  despesas  DespesaAgrupada[]
+
+  @@unique([documento, tipo])
+  @@index([tipo])
+  @@index([nome])
+}
+
 model Importacao {
   id                  String            @id @default(cuid())
   tipo                TipoImportacao
@@ -61,7 +83,8 @@ model PedidoAgrupado {
   // Nulo quando o registro foi lancado manualmente na tela (sem CSV).
   importacaoId       String?
   importacao         Importacao? @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
-  cliente            String
+  clienteId          String
+  cliente            Parceiro    @relation(fields: [clienteId], references: [id])
   categoriaId        String
   categoria          Categoria   @relation(fields: [categoriaId], references: [id])
   subtotal           Decimal     @db.Decimal(14, 2)
@@ -73,7 +96,7 @@ model PedidoAgrupado {
   dataPedido         DateTime
   status             String
 
-  @@index([cliente])
+  @@index([clienteId])
   @@index([dataPedido])
   @@index([categoriaId])
 }
@@ -83,7 +106,8 @@ model DespesaAgrupada {
   // Nulo quando o registro foi lancado manualmente na tela (sem CSV).
   importacaoId   String?
   importacao     Importacao? @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
-  fornecedor     String
+  fornecedorId   String
+  fornecedor     Parceiro    @relation(fields: [fornecedorId], references: [id])
   categoriaId    String
   categoria      Categoria   @relation(fields: [categoriaId], references: [id])
   valor          Decimal     @db.Decimal(14, 2)
@@ -91,7 +115,7 @@ model DespesaAgrupada {
   dataPagamento  DateTime
   status         String
 
-  @@index([fornecedor])
+  @@index([fornecedorId])
   @@index([dataPagamento])
   @@index([categoriaId])
 }

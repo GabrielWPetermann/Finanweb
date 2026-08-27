@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Gerador EDI ORDERS (D.96A)</title>
+<style>
+  :root {
+    --cor-fundo: #f4f5f7;
+    --cor-superficie: #ffffff;
+    --cor-borda: #dde1e6;
+    --cor-texto: #1f2430;
+    --cor-texto-suave: #626a76;
+    --cor-primaria: #2f4b7c;
+    --cor-primaria-hover: #253c63;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: var(--cor-fundo);
+    color: var(--cor-texto);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .container { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 24px 0 10px; }
+  .subtitulo { color: var(--cor-texto-suave); margin: 0 0 20px; }
+  .subtitulo a { color: var(--cor-primaria); }
+  .card {
+    background: var(--cor-superficie);
+    border: 1px solid var(--cor-borda);
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+  @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--cor-texto-suave);
+  }
+  input, select {
+    border: 1px solid var(--cor-borda);
+    border-radius: 4px;
+    padding: 7px 9px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--cor-texto);
+    background: var(--cor-superficie);
+  }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  th, td { text-align: left; padding: 6px; font-size: 13px; }
+  th { color: var(--cor-texto-suave); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+  td input, td select { width: 100%; }
+  button {
+    background: var(--cor-primaria);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button:hover { background: var(--cor-primaria-hover); }
+  button.secundario {
+    background: var(--cor-superficie);
+    color: var(--cor-texto);
+    border: 1px solid var(--cor-borda);
+  }
+  button.secundario:hover { background: var(--cor-fundo); }
+  button.remover {
+    background: var(--cor-superficie);
+    color: #b3311f;
+    border: 1px solid #b3311f;
+    padding: 4px 8px;
+  }
+  .acoes { display: flex; gap: 10px; margin: 16px 0; }
+  textarea {
+    width: 100%;
+    min-height: 260px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 12px;
+    border: 1px solid var(--cor-borda);
+    border-radius: 6px;
+    padding: 12px;
+    background: var(--cor-fundo);
+    color: var(--cor-texto);
+    white-space: pre;
+    resize: vertical;
+  }
+  .nota {
+    font-size: 12px;
+    color: var(--cor-texto-suave);
+    margin-top: 20px;
+    border-top: 1px solid var(--cor-borda);
+    padding-top: 14px;
+  }
+  .copiado { color: #1f7a4d; font-size: 12px; margin-left: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Gerador EDI ORDERS (D.96A)</h1>
+  <p class="subtitulo">
+    Preenche os dados do pedido de compra e gera a mensagem EDIFACT ORDERS correspondente, usando só os
+    segmentos obrigatórios (estrutura + os mínimos pra um pedido fazer sentido). Roda inteiro no navegador,
+    nada é enviado a lugar nenhum. Pra conferir se um arquivo EDI segue essa mesma estrutura, tem o
+    <a href="validador-edi-orders.html">validador</a>.
+  </p>
+
+  <h2>Intercâmbio (envelope)</h2>
+  <div class="card grid-2">
+    <label>ID do remetente
+      <input type="text" id="remetenteId" value="SENDER1" />
+    </label>
+    <label>ID do destinatário
+      <input type="text" id="destinatarioId" value="RECEIVER1" />
+    </label>
+    <label>Referência de controle do intercâmbio
+      <input type="text" id="controleRef" />
+    </label>
+    <label>Número de referência da mensagem (UNH)
+      <input type="text" id="msgRef" />
+    </label>
+  </div>
+
+  <h2>Pedido</h2>
+  <div class="card grid-2">
+    <label>Número do pedido (BGM)
+      <input type="text" id="numeroPedido" placeholder="128576" />
+    </label>
+    <label>Data do pedido
+      <input type="date" id="dataPedido" />
+    </label>
+  </div>
+
+  <h2>Comprador</h2>
+  <div class="card grid-2">
+    <label>Código (opcional)
+      <input type="text" id="compradorCodigo" placeholder="GLN, código interno..." />
+    </label>
+    <label>Nome
+      <input type="text" id="compradorNome" placeholder="Nome do comprador" />
+    </label>
+  </div>
+
+  <h2>Fornecedor</h2>
+  <div class="card grid-2">
+    <label>Código (opcional)
+      <input type="text" id="fornecedorCodigo" placeholder="GLN, código interno..." />
+    </label>
+    <label>Nome
+      <input type="text" id="fornecedorNome" placeholder="Nome do fornecedor" />
+    </label>
+  </div>
+
+  <h2>Itens do pedido</h2>
+  <div class="card">
+    <table id="tabelaItens">
+      <thead>
+        <tr>
+          <th>Código do item</th>
+          <th>Tipo do código</th>
+          <th>Quantidade</th>
+          <th>Unidade</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="corpoItens"></tbody>
+    </table>
+    <button type="button" class="secundario" onclick="adicionarLinhaItem()">+ Adicionar item</button>
+  </div>
+
+  <div class="acoes">
+    <button type="button" onclick="gerarEDI()">Gerar EDI</button>
+    <button type="button" class="secundario" onclick="copiarResultado()">Copiar</button>
+    <button type="button" class="secundario" onclick="baixarResultado()">Baixar .txt</button>
+    <span id="copiadoAviso" class="copiado" hidden>Copiado!</span>
+  </div>
+
+  <textarea id="resultado" readonly placeholder="A mensagem gerada aparece aqui..."></textarea>
+
+  <p class="nota">
+    Segmentos incluídos: UNB/UNZ (envelope do intercâmbio), UNH/UNT (cabeçalho/rodapé da mensagem), BGM (início
+    da mensagem), DTM (data do pedido), NAD+BY e NAD+SU (comprador e fornecedor), LIN e QTY (um par por item),
+    UNS (controle de seção). Ficaram de fora por serem opcionais no padrão: PAI, FTX, RFF, PIA, IMD, PRI, TAX,
+    PAC, PCI, LOC, TDT, TOD, CUX, CTA, COM, CNT.
+  </p>
+</div>
+
+<script>
+  function segmento(tag, elementos) {
+    const lista = elementos.slice();
+    while (lista.length && (lista[lista.length - 1] === "" || lista[lista.length - 1] == null)) {
+      lista.pop();
+    }
+    return lista.length ? tag + "+" + lista.join("+") + "'" : tag + "'";
+  }
+
+  function pad(numero, tamanho) {
+    return String(numero).padStart(tamanho, "0");
+  }
+
+  function dataHoraAtual() {
+    const agora = new Date();
+    const yy = pad(agora.getFullYear() % 100, 2);
+    const mm = pad(agora.getMonth() + 1, 2);
+    const dd = pad(agora.getDate(), 2);
+    const hh = pad(agora.getHours(), 2);
+    const mi = pad(agora.getMinutes(), 2);
+    return { data: yy + mm + dd, hora: hh + mi };
+  }
+
+  function novaReferencia() {
+    return String(Date.now()).slice(-9);
+  }
+
+  function inicializar() {
+    document.getElementById("controleRef").value = novaReferencia();
+    document.getElementById("msgRef").value = novaReferencia();
+    document.getElementById("dataPedido").value = new Date().toISOString().slice(0, 10);
+    adicionarLinhaItem();
+  }
+
+  function adicionarLinhaItem() {
+    const corpo = document.getElementById("corpoItens");
+    const linha = document.createElement("tr");
+    linha.innerHTML =
+      '<td><input type="text" class="item-codigo" placeholder="4000862141404" /></td>' +
+      '<td><select class="item-tipo-codigo">' +
+      '<option value="EN">EN — EAN/GTIN</option>' +
+      '<option value="SA">SA — Nº do fornecedor</option>' +
+      '<option value="BP">BP — Nº do comprador</option>' +
+      "</select></td>" +
+      '<td><input type="text" class="item-quantidade" placeholder="48" /></td>' +
+      '<td><input type="text" class="item-unidade" value="EA" /></td>' +
+      '<td><button type="button" class="remover" onclick="removerLinha(this)">Remover</button></td>';
+    corpo.appendChild(linha);
+  }
+
+  function removerLinha(botao) {
+    const corpo = document.getElementById("corpoItens");
+    if (corpo.children.length > 1) {
+      botao.closest("tr").remove();
+    }
+  }
+
+  function composicaoParte(codigo) {
+    return codigo ? codigo + "::92" : "";
+  }
+
+  function gerarEDI() {
+    const remetenteId = document.getElementById("remetenteId").value.trim() || "REMETENTE";
+    const destinatarioId = document.getElementById("destinatarioId").value.trim() || "DESTINATARIO";
+    const controleRef = document.getElementById("controleRef").value.trim() || novaReferencia();
+    const msgRef = document.getElementById("msgRef").value.trim() || novaReferencia();
+    const numeroPedido = document.getElementById("numeroPedido").value.trim();
+    const dataPedidoInput = document.getElementById("dataPedido").value;
+    const compradorCodigo = document.getElementById("compradorCodigo").value.trim();
+    const compradorNome = document.getElementById("compradorNome").value.trim();
+    const fornecedorCodigo = document.getElementById("fornecedorCodigo").value.trim();
+    const fornecedorNome = document.getElementById("fornecedorNome").value.trim();
+
+    if (!numeroPedido) {
+      alert("Preenche o número do pedido.");
+      return;
+    }
+    if (!compradorNome || !fornecedorNome) {
+      alert("Preenche o nome do comprador e do fornecedor.");
+      return;
+    }
+
+    const linhasItens = Array.from(document.querySelectorAll("#corpoItens tr"));
+    if (linhasItens.length === 0) {
+      alert("Adiciona pelo menos um item.");
+      return;
+    }
+
+    const dataPedidoAAAAMMDD = dataPedidoInput ? dataPedidoInput.replaceAll("-", "") : "";
+    const agora = dataHoraAtual();
+
+    const segmentos = [];
+
+    segmentos.push(
+      segmento("UNB", [
+        "UNOB:1",
+        remetenteId + ":ZZ",
+        destinatarioId + ":ZZ",
+        agora.data + ":" + agora.hora,
+        controleRef,
+        "",
+        "ORDERS",
+      ])
+    );
+
+    segmentos.push(segmento("UNH", [msgRef, "ORDERS:D:96A:UN"]));
+    segmentos.push(segmento("BGM", ["220", numeroPedido, "9"]));
+
+    if (dataPedidoAAAAMMDD) {
+      segmentos.push(segmento("DTM", ["137:" + dataPedidoAAAAMMDD + ":102"]));
+    }
+
+    segmentos.push(segmento("NAD", ["BY", composicaoParte(compradorCodigo), compradorNome]));
+    segmentos.push(segmento("NAD", ["SU", composicaoParte(fornecedorCodigo), fornecedorNome]));
+
+    let numeroLinha = 0;
+    let itensValidos = 0;
+    for (const linha of linhasItens) {
+      const codigo = linha.querySelector(".item-codigo").value.trim();
+      const tipoCodigo = linha.querySelector(".item-tipo-codigo").value;
+      const quantidade = linha.querySelector(".item-quantidade").value.trim();
+      const unidade = linha.querySelector(".item-unidade").value.trim();
+
+      if (!codigo || !quantidade) continue;
+
+      numeroLinha++;
+      itensValidos++;
+      segmentos.push(segmento("LIN", [String(numeroLinha), "", codigo + ":" + tipoCodigo]));
+      segmentos.push(segmento("QTY", ["21:" + quantidade + (unidade ? ":" + unidade : "")]));
+    }
+
+    if (itensValidos === 0) {
+      alert("Preenche código e quantidade de pelo menos um item.");
+      return;
+    }
+
+    segmentos.push(segmento("UNS", ["S"]));
+
+    // UNT conta os segmentos da mensagem, do UNH ao UNT, ele mesmo incluso.
+    const indiceUNH = segmentos.findIndex((s) => s.startsWith("UNH+"));
+    const qtdSegmentosMensagem = segmentos.length - indiceUNH + 1;
+    segmentos.push(segmento("UNT", [String(qtdSegmentosMensagem), msgRef]));
+
+    segmentos.push(segmento("UNZ", ["1", controleRef]));
+
+    document.getElementById("resultado").value = segmentos.join("\n");
+    document.getElementById("copiadoAviso").hidden = true;
+  }
+
+  function copiarResultado() {
+    const resultado = document.getElementById("resultado");
+    if (!resultado.value) return;
+    resultado.select();
+    navigator.clipboard.writeText(resultado.value).then(() => {
+      const aviso = document.getElementById("copiadoAviso");
+      aviso.hidden = false;
+      setTimeout(() => (aviso.hidden = true), 2000);
+    });
+  }
+
+  function baixarResultado() {
+    const resultado = document.getElementById("resultado").value;
+    if (!resultado) {
+      alert("Gera a mensagem primeiro.");
+      return;
+    }
+    const numeroPedido = document.getElementById("numeroPedido").value.trim();
+    const nomeArquivo = "pedido" + (numeroPedido ? "-" + numeroPedido : "") + ".txt";
+
+    const blob = new Blob([resultado], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = nomeArquivo;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  inicializar();
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 // virgula. Ver README para o contrato completo do formato e essa limitacao.
 
 const CAMPOS_CABECALHO = 10;
-const CAMPOS_DETALHE = 11;
+const CAMPOS_DETALHE = 12;
 const CAMPOS_TOTALIZADOR = 3;
 
 const REGEX_DATA = /^\d{8}$/;
@@ -18,6 +18,7 @@ export interface EntradaCabecalho {
 
 export interface EntradaPedido {
   cliente: string;
+  documento: string;
   categoria: string;
   subtotal: number;
   descontoPercentual: number;
@@ -81,37 +82,44 @@ export function parseEntradaCsv(conteudo: string): EntradaParseResult {
           return;
         }
 
-        const status = campos[10].trim();
+        const status = campos[11].trim();
         if (status.toUpperCase() === "CANCELADO") {
           ignorados++;
           return;
         }
 
-        const subtotal = Number(campos[3]);
-        const descontoPercentual = Number(campos[4]);
-        const descontoValor = Number(campos[5]);
-        const frete = Number(campos[6]);
-        const valorTotal = Number(campos[7]);
+        const documento = campos[2].trim();
+        if (!documento) {
+          erros.push(`Linha ${numeroLinha}: campo documento (CNPJ/CPF do cliente) é obrigatório.`);
+          return;
+        }
+
+        const subtotal = Number(campos[4]);
+        const descontoPercentual = Number(campos[5]);
+        const descontoValor = Number(campos[6]);
+        const frete = Number(campos[7]);
+        const valorTotal = Number(campos[8]);
 
         if ([subtotal, descontoPercentual, descontoValor, frete, valorTotal].some(Number.isNaN)) {
           erros.push(`Linha ${numeroLinha}: valores numéricos inválidos (subtotal/desconto/frete/valor_total).`);
           return;
         }
-        if (!REGEX_DATA.test(campos[9])) {
+        if (!REGEX_DATA.test(campos[10])) {
           erros.push(`Linha ${numeroLinha}: data_pedido inválida, esperado AAAAMMDD (ex: 20260813).`);
           return;
         }
 
         pedidos.push({
           cliente: campos[1],
-          categoria: campos[2],
+          documento,
+          categoria: campos[3],
           subtotal,
           descontoPercentual,
           descontoValor,
           frete,
           valorTotal,
-          formaPagamento: campos[8],
-          dataPedido: campos[9],
+          formaPagamento: campos[9],
+          dataPedido: campos[10],
           status,
         });
         break;

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getUsuarioAtual } from "@/lib/auth";
 import { criarRecebimentoAction } from "./actions";
 import { TabelaRecebimentos, type RecebimentoLinha } from "./tabela-recebimentos";
+import { SeletorParceiro } from "../_components/seletor-parceiro";
 
 function formatarMoeda(valor: number) {
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -26,28 +27,29 @@ export default async function RecebimentosPage({ searchParams }: Props) {
   const usuario = await getUsuarioAtual();
   const isAdmin = usuario?.role === "ADMIN";
 
-  const categorias = await prisma.categoria.findMany({
-    where: { tipo: "ENTRADA", ativo: true },
-    orderBy: { nome: "asc" },
-  });
+  const [categorias, clientes] = await Promise.all([
+    prisma.categoria.findMany({ where: { tipo: "ENTRADA", ativo: true }, orderBy: { nome: "asc" } }),
+    prisma.parceiro.findMany({ where: { tipo: "CLIENTE", ativo: true }, orderBy: { nome: "asc" } }),
+  ]);
 
   const pedidos = await prisma.pedidoAgrupado.findMany({
     where: {
       categoriaId: categoriaId || undefined,
-      cliente: cliente ? { contains: cliente, mode: "insensitive" } : undefined,
+      cliente: cliente ? { nome: { contains: cliente, mode: "insensitive" } } : undefined,
       dataPedido: {
         gte: inicio ? new Date(inicio) : undefined,
         lte: fim ? new Date(`${fim}T23:59:59.999Z`) : undefined,
       },
     },
-    include: { categoria: true },
+    include: { categoria: true, cliente: true },
     orderBy: { dataPedido: "desc" },
     take: 200,
   });
 
   const linhas: RecebimentoLinha[] = pedidos.map((p) => ({
     id: p.id,
-    cliente: p.cliente,
+    clienteId: p.clienteId,
+    clienteNome: p.cliente.nome,
     categoriaNome: p.categoria.nome,
     subtotal: p.subtotal.toString(),
     descontoPercentual: p.descontoPercentual.toString(),
@@ -98,17 +100,24 @@ export default async function RecebimentosPage({ searchParams }: Props) {
       <TabelaRecebimentos
         pedidos={linhas}
         categoriasNomes={categorias.map((c) => c.nome)}
+        clientes={clientes.map((c) => ({ id: c.id, nome: c.nome }))}
         isAdmin={isAdmin}
       />
 
       <h2>Novo recebimento</h2>
-      <p className="subtitulo">Lança um recebimento direto, sem precisar importar um CSV.</p>
+      <p className="subtitulo">
+        Lança um recebimento direto, sem precisar importar um CSV. Se o cliente ainda não está cadastrado,
+        escolhe &quot;+ Criar novo...&quot; no seletor.
+      </p>
       <form action={criarRecebimentoAction} className="card card-formulario">
         <div className="grid-2">
-          <label>
-            Cliente
-            <input type="text" name="cliente" required />
-          </label>
+          <SeletorParceiro
+            label="Cliente"
+            campoId="clienteId"
+            campoNomeNovo="clienteNovoNome"
+            opcoes={clientes.map((c) => ({ id: c.id, nome: c.nome }))}
+            placeholderNovo="Nome do novo cliente"
+          />
           <label>
             Categoria
             <input type="text" name="categoria" list="categorias-entrada-novo" required />

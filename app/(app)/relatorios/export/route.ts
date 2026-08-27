@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   if (tipo === "ENTRADAS") {
     const pedidos = await prisma.pedidoAgrupado.findMany({
       where: { dataPedido: { gte: dataInicio, lte: dataFim } },
-      include: { categoria: true },
+      include: { categoria: true, cliente: true },
       orderBy: { dataPedido: "asc" },
     });
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     for (const p of pedidos) {
       linhas.push(
         linhaCsv([
-          p.cliente,
+          p.cliente.nome,
           p.categoria.nome,
           p.valorTotal.toString(),
           p.formaPagamento,
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   } else if (tipo === "SAIDAS") {
     const despesas = await prisma.despesaAgrupada.findMany({
       where: { dataPagamento: { gte: dataInicio, lte: dataFim } },
-      include: { categoria: true },
+      include: { categoria: true, fornecedor: true },
       orderBy: { dataPagamento: "asc" },
     });
 
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     for (const d of despesas) {
       linhas.push(
         linhaCsv([
-          d.fornecedor,
+          d.fornecedor.nome,
           d.categoria.nome,
           d.valor.toString(),
           d.formaPagamento,

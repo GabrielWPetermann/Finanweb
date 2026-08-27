@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Validador EDI ORDERS (D.96A)</title>
+<style>
+  :root {
+    --cor-fundo: #f4f5f7;
+    --cor-superficie: #ffffff;
+    --cor-borda: #dde1e6;
+    --cor-texto: #1f2430;
+    --cor-texto-suave: #626a76;
+    --cor-primaria: #2f4b7c;
+    --cor-primaria-hover: #253c63;
+    --cor-positivo: #1f7a4d;
+    --cor-negativo: #b3311f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: var(--cor-fundo);
+    color: var(--cor-texto);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .container { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 24px 0 10px; }
+  h3 { font-size: 13px; margin: 0 0 6px; }
+  .subtitulo { color: var(--cor-texto-suave); margin: 0 0 20px; }
+  .subtitulo a { color: var(--cor-primaria); }
+  .card {
+    background: var(--cor-superficie);
+    border: 1px solid var(--cor-borda);
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  input[type="file"] {
+    border: 1px solid var(--cor-borda);
+    border-radius: 4px;
+    padding: 7px 9px;
+    font-size: 13px;
+    font-family: inherit;
+    background: var(--cor-superficie);
+    width: 100%;
+  }
+  textarea {
+    width: 100%;
+    min-height: 260px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 12px;
+    border: 1px solid var(--cor-borda);
+    border-radius: 6px;
+    padding: 12px;
+    background: var(--cor-fundo);
+    color: var(--cor-texto);
+    white-space: pre;
+    resize: vertical;
+  }
+  button {
+    background: var(--cor-primaria);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button:hover { background: var(--cor-primaria-hover); }
+  button.secundario {
+    background: var(--cor-superficie);
+    color: var(--cor-texto);
+    border: 1px solid var(--cor-borda);
+  }
+  button.secundario:hover { background: var(--cor-fundo); }
+  .acoes { display: flex; gap: 10px; margin: 16px 0; flex-wrap: wrap; }
+  .bloco-validacao {
+    border: 1px solid var(--cor-borda);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .bloco-validacao p { margin: 0; font-size: 13px; }
+  .bloco-validacao ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
+  .bloco-validacao li { margin-bottom: 3px; }
+  .bloco-validacao.ok { border-color: #b7ddc7; background: #e9f6ee; }
+  .bloco-validacao.ok h3 { color: var(--cor-positivo); }
+  .bloco-validacao.erro { border-color: #eabdb6; background: #fbeaea; }
+  .bloco-validacao.erro h3 { color: var(--cor-negativo); }
+  .bloco-leitura {
+    border: 1px solid var(--cor-borda);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: var(--cor-superficie);
+  }
+  .bloco-leitura h3 { color: var(--cor-primaria); }
+  .bloco-leitura dl { margin: 6px 0 0; }
+  .bloco-leitura dt { font-size: 12px; color: var(--cor-texto-suave); margin-top: 6px; }
+  .bloco-leitura dd { margin: 0; font-size: 13px; }
+  .nota {
+    font-size: 12px;
+    color: var(--cor-texto-suave);
+    margin-top: 20px;
+    border-top: 1px solid var(--cor-borda);
+    padding-top: 14px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Validador EDI ORDERS (D.96A)</h1>
+  <p class="subtitulo">
+    Confere se um arquivo EDIFACT ORDERS segue a estrutura mínima obrigatória (mesmo critério usado pelo
+    <a href="gerador-edi-orders.html">gerador</a>): envelope UNB/UNZ, cabeçalho/rodapé UNH/UNT, BGM, DTM,
+    NAD comprador e fornecedor, LIN+QTY por item, UNS. Roda inteiro no navegador, nada é enviado a lugar
+    nenhum.
+  </p>
+
+  <h2>Arquivo</h2>
+  <div class="card">
+    <input type="file" id="arquivoValidacao" accept=".txt,.edi,.edifact" />
+  </div>
+
+  <h2>Ou cola o conteúdo aqui</h2>
+  <textarea id="entradaValidacao" placeholder="UNB+UNOB:1+...'"></textarea>
+
+  <div class="acoes">
+    <button type="button" onclick="rodarValidacao()">Validar</button>
+    <button type="button" class="secundario" onclick="limparValidacao()">Limpar</button>
+  </div>
+
+  <div id="resultadoValidacao"></div>
+
+  <p class="nota">
+    Cada bloco UNH...UNT encontrado no arquivo é validado como um pedido separado (igual o exemplo em C# que
+    itera <code>purchaseOrders</code> e chama <code>IsValid</code> em cada um). O envelope (UNB/UNZ) é
+    validado uma vez, pro arquivo inteiro.
+  </p>
+</div>
+
+<script>
+  function dividirSegmentos(texto) {
+    const bruto = texto.replace(/\r\n|\r/g, "\n").trim();
+    return bruto
+      .split("'")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+      .map((s) => {
+        const partes = s.split("+");
+        return { tag: partes[0], elementos: partes.slice(1), bruto: s };
+      });
+  }
+
+  function validarEnvelope(segmentos) {
+    const erros = [];
+    const unbs = segmentos.filter((s) => s.tag === "UNB");
+    const unzs = segmentos.filter((s) => s.tag === "UNZ");
+
+    if (unbs.length !== 1) {
+      erros.push("O arquivo precisa ter exatamente um segmento UNB (encontrado: " + unbs.length + ").");
+    }
+    if (unzs.length !== 1) {
+      erros.push("O arquivo precisa ter exatamente um segmento UNZ (encontrado: " + unzs.length + ").");
+    }
+    if (segmentos.length && segmentos[0].tag !== "UNB") {
+      erros.push("O primeiro segmento do arquivo precisa ser UNB.");
+    }
+    if (segmentos.length && segmentos[segmentos.length - 1].tag !== "UNZ") {
+      erros.push("O último segmento do arquivo precisa ser UNZ.");
+    }
+
+    if (unbs.length === 1 && unzs.length === 1) {
+      const controleUNB = unbs[0].elementos[4];
+      const controleUNZ = unzs[0].elementos[1];
+      if (controleUNB !== controleUNZ) {
+        erros.push(
+          "A referência de controle do UNZ (" + controleUNZ + ") não bate com a do UNB (" + controleUNB + ")."
+        );
+      }
+      const qtdMensagensDeclarada = Number(unzs[0].elementos[0]);
+      const qtdMensagensReal = segmentos.filter((s) => s.tag === "UNH").length;
+      if (qtdMensagensDeclarada !== qtdMensagensReal) {
+        erros.push(
+          "O UNZ declara " + qtdMensagensDeclarada + " mensagem(ns), mas o arquivo tem " + qtdMensagensReal + "."
+        );
+      }
+    }
+
+    return erros;
+  }
+
+  function dividirMensagens(segmentos) {
+    const mensagens = [];
+    let atual = null;
+    for (const seg of segmentos) {
+      if (seg.tag === "UNH") {
+        atual = [seg];
+      } else if (atual) {
+        atual.push(seg);
+        if (seg.tag === "UNT") {
+          mensagens.push(atual);
+          atual = null;
+        }
+      }
+    }
+    return mensagens;
+  }
+
+  function validarMensagemOrders(mensagem) {
+    const erros = [];
+    const unh = mensagem.find((s) => s.tag === "UNH");
+    const unt = mensagem[mensagem.length - 1];
+
+    if (!unh) {
+      erros.push("Mensagem sem segmento UNH.");
+      return erros;
+    }
+    if (!unt || unt.tag !== "UNT") {
+      erros.push("Mensagem sem segmento UNT no final.");
+    }
+
+    const tipoMensagem = (unh.elementos[1] || "").split(":")[0];
+    if (tipoMensagem !== "ORDERS") {
+      erros.push('UNH indica tipo de mensagem "' + tipoMensagem + '", esperado "ORDERS".');
+    }
+
+    if (unt && unt.tag === "UNT") {
+      const refUNH = unh.elementos[0];
+      const refUNT = unt.elementos[1];
+      if (refUNH !== refUNT) {
+        erros.push("Referência do UNT (" + refUNT + ") não bate com a do UNH (" + refUNH + ").");
+      }
+      const qtdDeclarada = Number(unt.elementos[0]);
+      const qtdReal = mensagem.length;
+      if (qtdDeclarada !== qtdReal) {
+        erros.push("UNT declara " + qtdDeclarada + " segmento(s), mas a mensagem tem " + qtdReal + ".");
+      }
+    }
+
+    const bgm = mensagem.find((s) => s.tag === "BGM");
+    if (!bgm) {
+      erros.push("Segmento BGM (início da mensagem) obrigatório não encontrado.");
+    } else if (bgm.elementos.length < 2 || !bgm.elementos[1]) {
+      erros.push("BGM precisa informar o número do pedido.");
+    }
+
+    const dtm = mensagem.find((s) => s.tag === "DTM");
+    if (!dtm) {
+      erros.push("Segmento DTM (data do pedido) obrigatório não encontrado.");
+    } else {
+      const partes = (dtm.elementos[0] || "").split(":");
+      if (partes.length < 2 || !/^\d{8}$/.test(partes[1] || "")) {
+        erros.push("DTM precisa ter uma data válida no formato AAAAMMDD.");
+      }
+    }
+
+    const nads = mensagem.filter((s) => s.tag === "NAD");
+    const comprador = nads.find((s) => s.elementos[0] === "BY");
+    const fornecedor = nads.find((s) => s.elementos[0] === "SU");
+    if (!comprador) {
+      erros.push("Segmento NAD+BY (comprador) obrigatório não encontrado.");
+    } else if (!comprador.elementos[1] && !comprador.elementos[2]) {
+      erros.push("NAD+BY precisa ter código ou nome do comprador.");
+    }
+    if (!fornecedor) {
+      erros.push("Segmento NAD+SU (fornecedor) obrigatório não encontrado.");
+    } else if (!fornecedor.elementos[1] && !fornecedor.elementos[2]) {
+      erros.push("NAD+SU precisa ter código ou nome do fornecedor.");
+    }
+
+    const lins = mensagem.filter((s) => s.tag === "LIN");
+    if (lins.length === 0) {
+      erros.push("Pedido sem nenhum item (segmento LIN).");
+    }
+    lins.forEach((lin, indice) => {
+      if (!lin.elementos[0]) {
+        erros.push("LIN #" + (indice + 1) + " sem número de linha.");
+      }
+      if (!lin.elementos[2]) {
+        erros.push("LIN #" + (indice + 1) + " (linha " + (lin.elementos[0] || "?") + ") sem código do item.");
+      }
+    });
+
+    for (let i = 0; i < mensagem.length; i++) {
+      if (mensagem[i].tag !== "LIN") continue;
+      let achouQty = false;
+      for (let j = i + 1; j < mensagem.length; j++) {
+        if (mensagem[j].tag === "LIN" || mensagem[j].tag === "UNS") break;
+        if (mensagem[j].tag === "QTY") {
+          achouQty = true;
+          const partesQty = (mensagem[j].elementos[0] || "").split(":");
+          if (partesQty.length < 2 || !partesQty[1] || Number.isNaN(Number(partesQty[1]))) {
+            erros.push("QTY do item na linha " + mensagem[i].elementos[0] + " tem quantidade inválida.");
+          }
+          break;
+        }
+      }
+      if (!achouQty) {
+        erros.push("Item na linha " + mensagem[i].elementos[0] + " sem segmento QTY (quantidade).");
+      }
+    }
+
+    const uns = mensagem.find((s) => s.tag === "UNS");
+    if (!uns) {
+      erros.push("Segmento UNS (controle de seção) obrigatório não encontrado.");
+    } else if (uns.elementos[0] !== "S") {
+      erros.push('UNS precisa ter o valor "S".');
+    }
+
+    const indices = {};
+    mensagem.forEach((s, i) => {
+      if (!(s.tag in indices)) indices[s.tag] = i;
+    });
+    function antesDe(tagA, tagB, nomeA, nomeB) {
+      if (indices[tagA] != null && indices[tagB] != null && indices[tagA] > indices[tagB]) {
+        erros.push(nomeA + " precisa vir antes de " + nomeB + " na mensagem.");
+      }
+    }
+    antesDe("BGM", "NAD", "BGM", "NAD");
+    antesDe("NAD", "LIN", "NAD", "LIN");
+    antesDe("LIN", "UNS", "LIN", "UNS");
+    antesDe("UNS", "UNT", "UNS", "UNT");
+
+    return erros;
+  }
+
+  const CODIGOS_TIPO_ITEM = {
+    EN: "EAN/GTIN",
+    SA: "Nº do fornecedor",
+    BP: "Nº do comprador",
+  };
+
+  const CODIGOS_FUNCAO_BGM = {
+    "1": "Cancelamento",
+    "4": "Alteração",
+    "5": "Substituição",
+    "7": "Duplicado",
+    "9": "Original",
+    "22": "Emitido pela referência do comprador",
+    "29": "Emitido pela referência do vendedor",
+  };
+
+  const CODIGOS_TIPO_DOCUMENTO_BGM = {
+    "220": "Pedido de compra (Order)",
+    "221": "Pedido em consignação",
+    "224": "Pedido de reposição",
+  };
+
+  function formatarDataAAAAMMDD(valor) {
+    if (!/^\d{8}$/.test(valor || "")) return valor || "—";
+    return valor.slice(6, 8) + "/" + valor.slice(4, 6) + "/" + valor.slice(0, 4);
+  }
+
+  function decodificarMensagem(mensagem) {
+    const linhas = [];
+
+    const bgm = mensagem.find((s) => s.tag === "BGM");
+    if (bgm) {
+      const tipoDoc = bgm.elementos[0] || "";
+      linhas.push(["Tipo de documento", CODIGOS_TIPO_DOCUMENTO_BGM[tipoDoc] || tipoDoc || "—"]);
+      linhas.push(["Número do pedido", bgm.elementos[1] || "—"]);
+      const funcao = bgm.elementos[2] || "";
+      if (funcao) linhas.push(["Função da mensagem", CODIGOS_FUNCAO_BGM[funcao] || funcao]);
+    }
+
+    const dtm = mensagem.find((s) => s.tag === "DTM" && (s.elementos[0] || "").startsWith("137:"));
+    if (dtm) {
+      const partes = dtm.elementos[0].split(":");
+      linhas.push(["Data do pedido", formatarDataAAAAMMDD(partes[1])]);
+    }
+
+    const nads = mensagem.filter((s) => s.tag === "NAD");
+    const comprador = nads.find((s) => s.elementos[0] === "BY");
+    if (comprador) {
+      const codigo = (comprador.elementos[1] || "").split(":")[0];
+      const nome = comprador.elementos[2] || "";
+      linhas.push(["Comprador", [codigo, nome].filter(Boolean).join(" — ") || "—"]);
+    }
+
+    const fornecedor = nads.find((s) => s.elementos[0] === "SU");
+    if (fornecedor) {
+      const codigo = (fornecedor.elementos[1] || "").split(":")[0];
+      const nome = fornecedor.elementos[2] || "";
+      linhas.push(["Fornecedor", [codigo, nome].filter(Boolean).join(" — ") || "—"]);
+    }
+
+    const lins = mensagem.filter((s) => s.tag === "LIN");
+    lins.forEach((lin, indice) => {
+      const numero = lin.elementos[0] || String(indice + 1);
+      const composicaoItem = (lin.elementos[2] || "").split(":");
+      const codigoItem = composicaoItem[0] || "—";
+      const tipoItem = composicaoItem[1] || "";
+      linhas.push([
+        "Item " + numero + " - Código",
+        codigoItem + (tipoItem ? " (" + (CODIGOS_TIPO_ITEM[tipoItem] || tipoItem) + ")" : ""),
+      ]);
+
+      const posicaoLin = mensagem.indexOf(lin);
+      let qty = null;
+      for (let j = posicaoLin + 1; j < mensagem.length; j++) {
+        if (mensagem[j].tag === "LIN" || mensagem[j].tag === "UNS") break;
+        if (mensagem[j].tag === "QTY") {
+          qty = mensagem[j];
+          break;
+        }
+      }
+      if (qty) {
+        const partesQty = (qty.elementos[0] || "").split(":");
+        const quantidade = partesQty[1] || "—";
+        const unidade = partesQty[2] || "";
+        linhas.push(["Item " + numero + " - Quantidade", quantidade + (unidade ? " " + unidade : "")]);
+      }
+    });
+
+    return linhas;
+  }
+
+  function validarArquivoEDI(texto) {
+    const segmentos = dividirSegmentos(texto);
+    const errosEnvelope = validarEnvelope(segmentos);
+    const mensagens = dividirMensagens(segmentos);
+
+    if (mensagens.length === 0) {
+      errosEnvelope.push("Nenhuma mensagem (UNH...UNT) encontrada no arquivo.");
+    }
+
+    const resultadoMensagens = mensagens.map((mensagem, indice) => {
+      const unh = mensagem.find((s) => s.tag === "UNH");
+      return {
+        referencia: unh ? unh.elementos[0] : "?",
+        indice: indice + 1,
+        erros: validarMensagemOrders(mensagem),
+        leitura: decodificarMensagem(mensagem),
+      };
+    });
+
+    return { errosEnvelope, mensagens: resultadoMensagens };
+  }
+
+  function escapeHtml(texto) {
+    const div = document.createElement("div");
+    div.textContent = texto;
+    return div.innerHTML;
+  }
+
+  function renderizarBloco(titulo, erros) {
+    if (erros.length === 0) {
+      return '<div class="bloco-validacao ok"><h3>' + escapeHtml(titulo) + " — válido</h3><p>Nenhum problema encontrado.</p></div>";
+    }
+    return (
+      '<div class="bloco-validacao erro"><h3>' +
+      escapeHtml(titulo) +
+      " — " +
+      erros.length +
+      " erro(s)</h3><ul>" +
+      erros.map((e) => "<li>" + escapeHtml(e) + "</li>").join("") +
+      "</ul></div>"
+    );
+  }
+
+  function renderizarLeitura(titulo, linhas) {
+    if (linhas.length === 0) return "";
+    const itens = linhas
+      .map(([rotulo, valor]) => "<dt>" + escapeHtml(rotulo) + "</dt><dd>" + escapeHtml(valor) + "</dd>")
+      .join("");
+    return '<div class="bloco-leitura"><h3>' + escapeHtml(titulo) + "</h3><dl>" + itens + "</dl></div>";
+  }
+
+  function renderizarResultadoValidacao(resultado) {
+    const partes = [renderizarBloco("Envelope (UNB/UNZ)", resultado.errosEnvelope)];
+
+    resultado.mensagens.forEach((m) => {
+      const titulo = "Pedido " + m.indice + " (ref. " + m.referencia + ")";
+      partes.push(renderizarLeitura(titulo + " — leitura", m.leitura));
+      partes.push(renderizarBloco(titulo + " — validação", m.erros));
+    });
+
+    document.getElementById("resultadoValidacao").innerHTML = partes.join("");
+  }
+
+  function rodarValidacao() {
+    const texto = document.getElementById("entradaValidacao").value;
+    if (!texto.trim()) {
+      alert("Cola o conteúdo do arquivo EDI ou selecione um arquivo.");
+      return;
+    }
+    const resultado = validarArquivoEDI(texto);
+    renderizarResultadoValidacao(resultado);
+  }
+
+  function limparValidacao() {
+    document.getElementById("entradaValidacao").value = "";
+    document.getElementById("resultadoValidacao").innerHTML = "";
+    document.getElementById("arquivoValidacao").value = "";
+  }
+
+  document.getElementById("arquivoValidacao").addEventListener("change", (evento) => {
+    const arquivo = evento.target.files[0];
+    if (!arquivo) return;
+    const leitor = new FileReader();
+    leitor.onload = () => {
+      document.getElementById("entradaValidacao").value = String(leitor.result || "");
+    };
+    leitor.readAsText(arquivo);
+  });
+</script>
+</body>
+</html>

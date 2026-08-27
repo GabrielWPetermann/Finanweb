@@ -47,14 +47,14 @@ cliente/fornecedor/categoria não têm vírgula.
 ### Entrada (vendas/recebimentos, agrupados por cliente)
 
 ```
-tipo_registro,cliente,categoria,subtotal,desconto_percentual,desconto_valor,frete,valor_total,forma_pagamento,data_pedido,status
+tipo_registro,cliente,documento,categoria,subtotal,desconto_percentual,desconto_valor,frete,valor_total,forma_pagamento,data_pedido,status
 0,GEOCONSULT ENGENHARIA LTDA,12345678000199,,,,,TOTAL POR CLIENTE,20260813,GABRIEL
-1,Ana Santos,Vendas,961421.78,6.80,65419.10,6162.23,902164.91,Boleto,20260811,CONFIRMADO
+1,Ana Santos,11122233344,Vendas,961421.78,6.80,65419.10,6162.23,902164.91,Boleto,20260811,CONFIRMADO
 9,10,10478284.62
 ```
 
 - **Linha `0`** (cabeçalho): `tipo_registro,nome_empresa,cnpj,(4 campos vazios),tipo_documento,data_arquivo,usuario`
-- **Linha `1`** (detalhe, uma por cliente): `tipo_registro,cliente,categoria,subtotal,desconto_percentual,desconto_valor,frete,valor_total,forma_pagamento,data_pedido,status`
+- **Linha `1`** (detalhe, uma por cliente): `tipo_registro,cliente,documento,categoria,subtotal,desconto_percentual,desconto_valor,frete,valor_total,forma_pagamento,data_pedido,status`
 - **Linha `9`** (totalizador): `tipo_registro,qtd_registros,valor_total_geral`
 
 `status` é o status do registro (ex: `CONFIRMADO`, `PENDENTE`). O único valor com efeito no sistema é `CANCELADO` - linhas com esse status são ignoradas na importação; qualquer outro texto é só armazenado.
@@ -62,15 +62,30 @@ tipo_registro,cliente,categoria,subtotal,desconto_percentual,desconto_valor,fret
 ### Saída (despesas/pagamentos, agrupados por fornecedor)
 
 ```
-tipo_registro,fornecedor,categoria,valor,forma_pagamento,data_pagamento,status
+tipo_registro,fornecedor,documento,categoria,valor,forma_pagamento,data_pagamento,status
 0,GEOCONSULT ENGENHARIA LTDA,12345678000199,,,TOTAL POR FORNECEDOR,20260813,GABRIEL
-1,Distribuidora ABC Ltda,Fornecedores,45230.00,Boleto,20260811,CONFIRMADO
+1,Distribuidora ABC Ltda,99988877000166,Fornecedores,45230.00,Boleto,20260811,CONFIRMADO
 9,1,45230.00
 ```
 
 - **Linha `0`**: `tipo_registro,nome_empresa,cnpj,(2 campos vazios),tipo_documento,data_arquivo,usuario`
-- **Linha `1`** (detalhe, uma por fornecedor): `tipo_registro,fornecedor,categoria,valor,forma_pagamento,data_pagamento,status`
+- **Linha `1`** (detalhe, uma por fornecedor): `tipo_registro,fornecedor,documento,categoria,valor,forma_pagamento,data_pagamento,status`
 - **Linha `9`**: `tipo_registro,qtd_registros,valor_total_geral`
+
+### Cadastros (clientes e fornecedores)
+
+Cliente e fornecedor não são mais texto solto: são um cadastro (`Parceiro`,
+com nome, documento, e-mail e telefone), gerenciável em `/admin/cadastros`.
+A forma de resolver esse cadastro depende de onde o dado entra:
+
+- **Pelo CSV**: casa pelo campo `documento` (CNPJ/CPF), que é obrigatório em
+  ambos os formatos. Se já existe um cadastro com aquele documento (para o
+  tipo certo, cliente ou fornecedor), reaproveita; senão, cria um novo com o
+  nome que veio no arquivo.
+- **Pelas telas de Recebimentos/Pagamentos**: é obrigatório escolher um
+  cadastro já existente num seletor; se ainda não existe, dá pra criar um
+  novo rápido direto ali (só com o nome — documento, e-mail e telefone
+  ficam em branco, editáveis depois em `/admin/cadastros`).
 
 ### Categorias
 
@@ -93,6 +108,11 @@ simples) ou cadastrar uma nova manualmente.
   mesma granularidade que o CSV já traz.
 - Todo campo monetário usa `Decimal(14,2)` no banco (nunca `Float`), para
   evitar erro de arredondamento.
+- O sistema funciona sem depender de importar CSV nenhum: dá pra lançar
+  recebimentos e pagamentos direto nas telas, e editar ou excluir (exclusão
+  só ADMIN) qualquer registro depois, venha ele de um CSV ou lançado na mão.
+  O arquivo original de uma importação (em Histórico) não muda quando os
+  registros dela são editados — continua sendo o comprovante do envio.
 
 ## Telas
 
@@ -101,12 +121,13 @@ simples) ou cadastrar uma nova manualmente.
 | `/login` | Login (username + senha) | público |
 | `/` | Dashboard: saldo geral, top clientes, top fornecedores | autenticado |
 | `/integrar` | Upload de CSV (Entrada ou Saída) | autenticado |
-| `/recebimentos` | Linhas de Entrada importadas, filtrável por categoria/cliente/período | autenticado |
-| `/pagamentos` | Linhas de Saída importadas, filtrável por categoria/fornecedor/período | autenticado |
+| `/recebimentos` | Recebimentos (de CSV ou lançados na mão): listar, filtrar, criar, editar; excluir é ADMIN | autenticado |
+| `/pagamentos` | Pagamentos (de CSV ou lançados na mão): listar, filtrar, criar, editar; excluir é ADMIN | autenticado |
 | `/historico` | Log de arquivos importados, com link de download do CSV original | autenticado |
 | `/relatorios` | Exporta CSV (Entradas / Saídas / Balanço) por período | autenticado |
 | `/admin/usuarios` | Criar/desativar usuários | ADMIN |
 | `/admin/categorias` | Editar nome das categorias de Entrada e Saída | ADMIN |
+| `/admin/cadastros` | Criar/editar clientes e fornecedores (nome, documento, e-mail, telefone) | ADMIN |
 
 ## Variáveis de ambiente
 
@@ -126,6 +147,21 @@ npx prisma migrate dev --name init
 npm run db:seed
 npm run dev
 ```
+
+## Ferramentas EDI (fora do sistema principal)
+
+Em `public/`, duas páginas HTML autocontidas (sem servidor, sem build, rodam
+direto no navegador — ou por `/gerador-edi-orders.html` quando o app está no
+ar):
+
+- **`gerador-edi-orders.html`**: monta um pedido de compra e gera a mensagem
+  EDIFACT ORDERS (D.96A) correspondente, usando só os segmentos obrigatórios
+  (UNB/UNZ, UNH/UNT, BGM, DTM, NAD comprador/fornecedor, LIN+QTY por item,
+  UNS). Tem botão de copiar e de baixar o `.txt`.
+- **`validador-edi-orders.html`**: sobe ou cola um arquivo EDI e confere se
+  ele segue essa mesma estrutura mínima, mensagem por mensagem (cada bloco
+  `UNH...UNT` é validado como um pedido separado), além de mostrar uma
+  leitura humana do conteúdo decodificado.
 
 ## Limitações conhecidas
 

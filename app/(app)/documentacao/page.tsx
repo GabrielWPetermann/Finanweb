@@ -144,7 +144,7 @@ Bruno,2000`}</pre>
         </tbody>
       </table>
 
-      <h3>Linha 1, detalhe por cliente (11 campos)</h3>
+      <h3>Linha 1, detalhe por cliente (12 campos)</h3>
       <table>
         <thead>
           <tr>
@@ -172,62 +172,69 @@ Bruno,2000`}</pre>
           </tr>
           <tr>
             <td>3</td>
+            <td>documento</td>
+            <td>texto (CNPJ/CPF)</td>
+            <td>sim</td>
+            <td>identifica o cadastro do cliente — casa com um já existente ou cria um novo</td>
+          </tr>
+          <tr>
+            <td>4</td>
             <td>categoria</td>
             <td>texto, sem vírgula</td>
             <td>sim</td>
             <td>criada automaticamente se ainda não existir</td>
           </tr>
           <tr>
-            <td>4</td>
+            <td>5</td>
             <td>subtotal</td>
             <td>número decimal (ex: 1000.00)</td>
             <td>sim</td>
             <td>valor antes de desconto e frete</td>
           </tr>
           <tr>
-            <td>5</td>
+            <td>6</td>
             <td>desconto_percentual</td>
             <td>número decimal</td>
             <td>sim (pode ser 0)</td>
             <td>percentual de desconto</td>
           </tr>
           <tr>
-            <td>6</td>
+            <td>7</td>
             <td>desconto_valor</td>
             <td>número decimal</td>
             <td>sim (pode ser 0)</td>
             <td>desconto em reais</td>
           </tr>
           <tr>
-            <td>7</td>
+            <td>8</td>
             <td>frete</td>
             <td>número decimal</td>
             <td>sim (pode ser 0)</td>
             <td>valor do frete</td>
           </tr>
           <tr>
-            <td>8</td>
+            <td>9</td>
             <td>valor_total</td>
             <td>número decimal</td>
             <td>sim</td>
             <td>valor que efetivamente entra no saldo</td>
           </tr>
           <tr>
-            <td>9</td>
+            <td>10</td>
             <td>forma_pagamento</td>
             <td>texto</td>
             <td>sim</td>
             <td>livre (Pix, Boleto, Cartão...)</td>
           </tr>
           <tr>
-            <td>10</td>
+            <td>11</td>
             <td>data_pedido</td>
             <td>AAAAMMDD</td>
             <td>sim</td>
             <td>8 dígitos, sem separador</td>
           </tr>
           <tr>
-            <td>11</td>
+            <td>12</td>
             <td>status</td>
             <td>texto</td>
             <td>sim</td>
@@ -341,7 +348,7 @@ Bruno,2000`}</pre>
         </tbody>
       </table>
 
-      <h3>Linha 1, detalhe por fornecedor (7 campos)</h3>
+      <h3>Linha 1, detalhe por fornecedor (8 campos)</h3>
       <table>
         <thead>
           <tr>
@@ -369,34 +376,41 @@ Bruno,2000`}</pre>
           </tr>
           <tr>
             <td>3</td>
+            <td>documento</td>
+            <td>texto (CNPJ/CPF)</td>
+            <td>sim</td>
+            <td>identifica o cadastro do fornecedor — casa com um já existente ou cria um novo</td>
+          </tr>
+          <tr>
+            <td>4</td>
             <td>categoria</td>
             <td>texto, sem vírgula</td>
             <td>sim</td>
             <td>criada automaticamente se ainda não existir</td>
           </tr>
           <tr>
-            <td>4</td>
+            <td>5</td>
             <td>valor</td>
             <td>número decimal</td>
             <td>sim</td>
             <td>valor que efetivamente entra no saldo</td>
           </tr>
           <tr>
-            <td>5</td>
+            <td>6</td>
             <td>forma_pagamento</td>
             <td>texto</td>
             <td>sim</td>
             <td>livre (Pix, Boleto, Cartão...)</td>
           </tr>
           <tr>
-            <td>6</td>
+            <td>7</td>
             <td>data_pagamento</td>
             <td>AAAAMMDD</td>
             <td>sim</td>
             <td>8 dígitos, sem separador</td>
           </tr>
           <tr>
-            <td>7</td>
+            <td>8</td>
             <td>status</td>
             <td>texto</td>
             <td>sim</td>
@@ -442,6 +456,25 @@ Bruno,2000`}</pre>
           </tr>
         </tbody>
       </table>
+
+      <h2>Cadastro de cliente e fornecedor</h2>
+      <p>
+        Cliente e fornecedor não são texto solto: são um cadastro (nome, documento, e-mail, telefone),
+        gerenciável em <a href="/admin/cadastros">Admin → Cadastros</a>. A forma de resolver esse cadastro
+        muda dependendo de onde o dado entra:
+      </p>
+      <ul>
+        <li>
+          <strong>Pelo CSV</strong>: casa pelo campo <code>documento</code> — se já existe um cadastro com
+          aquele documento (do tipo certo, cliente ou fornecedor), reaproveita; senão, cria um novo com o nome
+          que veio no arquivo.
+        </li>
+        <li>
+          <strong>Pelas telas de Recebimentos/Pagamentos</strong>: é preciso escolher um cadastro já existente
+          num seletor. Se ainda não existe, dá pra criar rápido ali mesmo (opção &quot;+ Criar novo...&quot;),
+          só com o nome — documento, e-mail e telefone ficam em branco, editáveis depois em Cadastros.
+        </li>
+      </ul>
 
       <h2>Particularidades</h2>
       <ul>
