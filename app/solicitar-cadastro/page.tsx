@@ -16,8 +16,8 @@ export default async function SolicitarCadastroPage({ searchParams }: Props) {
         </p>
         {erro && <p className="erro">{erro}</p>}
         <label>
-          E-mail
-          <input type="email" name="email" required autoFocus />
+          Usuário
+          <input type="text" name="username" required autoFocus />
         </label>
         <label>
           Senha
