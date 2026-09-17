@@ -43,10 +43,11 @@ Tem dois estilos de arquivo, dependendo do que é importado:
 
 - **Entrada e Saída** (movimentação financeira): 3 tipos de linha
   identificados pela primeira coluna (`tipo_registro`), sem cabeçalho de
-  coluna nomeada, posição fixa.
+  coluna nomeada, posição fixa. Aceitam também **XML validado por XSD**, com
+  o mesmo conteúdo — ver [Formato XML](#formato-xml-entrada-e-saída).
 - **Clientes e Fornecedores** (cadastro): CSV comum, com cabeçalho de coluna
   nomeada na primeira linha e uma linha por registro — não tem totalizador
-  porque não é transação, é dado mestre.
+  porque não é transação, é dado mestre. Só CSV.
 
 Em ambos os estilos, o parser faz `linha.split(",")` simples, sem suporte a
 aspas ou vírgula dentro de campo, já que o próprio formato assume que nomes
@@ -106,6 +107,76 @@ Ou seja, essa importação serve tanto pra carregar uma lista nova quanto pra
 atualizar em lote os dados de contato de cadastros que já existem. Ela não
 gera registro em Histórico nem some no saldo — é só cadastro, não afeta
 nenhum valor financeiro.
+
+### Formato XML (Entrada e Saída)
+
+Entrada e Saída também entram em XML, com o mesmo conteúdo do layout texto.
+A diferença que importa é o contrato: existe um **XSD** por movimento, e a
+importação recusa qualquer arquivo que não o satisfaça, devolvendo a regra
+violada com o número da linha.
+
+Os schemas ficam em `lib/xml/schemas/` e são servidos para download em
+`/integrar/schema?tipo=ENTRADA|SAIDA` — quem gera o arquivo do outro lado
+valida antes de enviar, em vez de descobrir o erro na resposta.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<movimento xmlns="urn:finanweb:entrada:1.0" versao="1.0" tipo="ENTRADA">
+  <cabecalho>
+    <empresa>Nome da Empresa LTDA</empresa>
+    <cnpj>00000000000000</cnpj>
+    <tipoDocumento>ENTRADA</tipoDocumento>
+    <dataArquivo>2026-01-01</dataArquivo>
+    <usuario>usuario</usuario>
+  </cabecalho>
+  <pedidos>
+    <pedido status="CONFIRMADO">
+      <cliente documento="00011122233">Nome do Cliente</cliente>
+      <categoria>Categoria Exemplo</categoria>
+      <subtotal>1000.00</subtotal>
+      <desconto percentual="0.00">0.00</desconto>
+      <frete>0.00</frete>
+      <valorTotal>1000.00</valorTotal>
+      <formaPagamento>Boleto</formaPagamento>
+      <dataPedido>2026-01-01</dataPedido>
+    </pedido>
+  </pedidos>
+  <totalizador>
+    <qtdRegistros>1</qtdRegistros>
+    <valorTotalGeral>1000.00</valorTotalGeral>
+  </totalizador>
+</movimento>
+```
+
+Saída tem a mesma espinha dorsal, com `<despesas>/<despesa>`, `<fornecedor>`
+e um único campo `<valor>` (sem subtotal, desconto nem frete).
+
+O que o XSD impõe e o layout texto não impunha:
+
+| Regra | Aceito |
+|---|---|
+| `documento` | só dígitos, 11 (CPF) ou 14 (CNPJ), obrigatório |
+| `status` | enumeração fechada: `CONFIRMADO`, `PENDENTE`, `CANCELADO` |
+| valores | `xs:decimal`, até 14 dígitos, 2 casas, não negativo |
+| datas | `xs:date` (`AAAA-MM-DD`) — o `AAAAMMDD` do CSV é recusado |
+| `percentual` | de 0 a 100, até 2 casas |
+| estrutura | `cabecalho` → `pedidos`/`despesas` → `totalizador`, nessa ordem, com pelo menos um registro |
+
+Como isso se encaixa no código:
+
+- `lib/parsers/entrada-xml.ts` e `saida-xml.ts` devolvem exatamente os mesmos
+  `EntradaParseResult`/`SaidaParseResult` dos parsers de CSV, então a
+  gravação no banco não sabe de que formato o arquivo veio.
+- `lib/xml-writer.ts` recebe essas mesmas estruturas: ler e escrever são
+  inversos, e é isso que permite exportar em XML e reimportar o arquivo.
+- `lib/xml/validador.ts` valida com `xmllint-wasm` (libxml2 em WebAssembly,
+  sem dependência nativa). O `next.config.mjs` precisa marcar esse pacote
+  como externo e incluir os `.xsd` no `outputFileTracing`, senão a validação
+  quebra só no build de produção.
+
+Exportação: `/relatorios/export?formato=xml&tipo=ENTRADAS|SAIDAS` gera o
+movimento completo e **confere a própria saída contra o XSD** antes de
+devolver o arquivo. Balanço não tem XML.
 
 ### Cadastros (clientes e fornecedores)
 
@@ -204,5 +275,15 @@ ar):
 ## Limitações conhecidas
 
 - Autenticação sem hash de senha e sem expiração de sessão.
-- Parser de CSV não trata aspas nem vírgula dentro de campo.
+- Parser de CSV não trata aspas nem vírgula dentro de campo. (No XML isso não
+  se aplica: vírgula em nome funciona normalmente.)
 - Regra D+2 não é revalidada no servidor, o sistema confia no valor que vem no arquivo.
+- O XSD é 1.0, que não expressa regra entre campos: `valorTotal = subtotal −
+  desconto + frete` e `qtdRegistros = count(pedido)` não são verificados pelo
+  schema. Precisaria de `xs:assert` (XSD 1.1), que o libxml2 não suporta.
+- Importação de XML tem limite de 10 MB, porque a validação monta a árvore
+  inteira em memória. CSV segue sem limite, lido linha a linha.
+- Cadastro de Clientes e Fornecedores só aceita CSV — é lista plana, sem XSD.
+- A importação não guarda em coluna própria o formato do arquivo; ele é
+  deduzido da extensão em `nomeArquivo`. Foi uma decisão para não exigir
+  migration no banco.
