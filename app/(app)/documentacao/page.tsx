@@ -3,10 +3,13 @@ export default function DocumentacaoPage() {
     <div>
       <h1>Documentação</h1>
       <p className="subtitulo">
-        Como montar os arquivos CSV de Entrada e Saída aceitos pelo sistema. Se preferir começar de um arquivo
-        pronto, tem modelo pra baixar na tela de <a href="/integrar">Integrar</a>. E se não quiser mexer com
-        CSV nenhum, dá pra lançar tudo direto pelas telas de <a href="/recebimentos">Recebimentos</a> e{" "}
-        <a href="/pagamentos">Pagamentos</a> — o CSV é um atalho pra lançar em lote, não uma obrigação.
+        Como montar os arquivos de Entrada e Saída aceitos pelo sistema. Entrada e Saída vêm em dois formatos:
+        o <strong>CSV</strong> descrito abaixo e o <strong>XML validado por XSD</strong> (veja{" "}
+        <a href="#xml">Formato XML</a>) — os dois carregam exatamente a mesma informação, escolha o que for
+        mais fácil de gerar do seu lado. Se preferir começar de um arquivo pronto, tem modelo dos dois pra
+        baixar na tela de <a href="/integrar">Integrar</a>. E se não quiser mexer com arquivo nenhum, dá pra
+        lançar tudo direto pelas telas de <a href="/recebimentos">Recebimentos</a> e{" "}
+        <a href="/pagamentos">Pagamentos</a> — o arquivo é um atalho pra lançar em lote, não uma obrigação.
       </p>
 
       <h2>Isso não é um CSV &quot;com cabeçalho&quot; comum</h2>
@@ -541,6 +544,199 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
         </li>
       </ul>
 
+      <h2 id="xml">Formato XML</h2>
+      <p>
+        Entrada e Saída também podem ser enviadas em XML. É a mesma informação do CSV, com uma diferença que
+        muda tudo na prática: existe um <strong>schema formal (XSD)</strong> que descreve o arquivo, e o
+        sistema <strong>recusa qualquer XML que não siga esse schema</strong>, apontando a regra violada e a
+        linha. Cadastro de Clientes e Fornecedores continua só em CSV — é uma lista plana, sem cabeçalho nem
+        totalizador, e não tem contrato de intercâmbio que justifique um schema.
+      </p>
+      <p className="subtitulo">
+        Baixe o schema na tela de Integrar (<a href="/integrar/schema?tipo=ENTRADA">XSD de Entrada</a> e{" "}
+        <a href="/integrar/schema?tipo=SAIDA">XSD de Saída</a>) e valide o arquivo aí no seu sistema antes de
+        enviar. Assim você descobre o erro na sua máquina, e não na resposta da importação.
+      </p>
+
+      <h3>Estrutura</h3>
+      <p>
+        No CSV, o significado de um campo vem da <em>posição</em> dele na linha: o 5º campo é o subtotal
+        porque é o 5º. No XML, vem do <em>nome</em> da tag. O arquivo é aninhado, e a ordem dos elementos
+        dentro de cada bloco é obrigatória.
+      </p>
+
+      <div className="grid-2">
+        <section>
+          <h3>Entrada</h3>
+          <pre>{`<?xml version="1.0" encoding="UTF-8"?>
+<movimento xmlns="urn:finanweb:entrada:1.0"
+           versao="1.0" tipo="ENTRADA">
+  <cabecalho>
+    <empresa>Nome da Empresa LTDA</empresa>
+    <cnpj>00000000000000</cnpj>
+    <tipoDocumento>ENTRADA</tipoDocumento>
+    <dataArquivo>2026-01-01</dataArquivo>
+    <usuario>usuario</usuario>
+  </cabecalho>
+  <pedidos>
+    <pedido status="CONFIRMADO">
+      <cliente documento="00011122233">Nome do Cliente</cliente>
+      <categoria>Categoria Exemplo</categoria>
+      <subtotal>1000.00</subtotal>
+      <desconto percentual="0.00">0.00</desconto>
+      <frete>0.00</frete>
+      <valorTotal>1000.00</valorTotal>
+      <formaPagamento>Boleto</formaPagamento>
+      <dataPedido>2026-01-01</dataPedido>
+    </pedido>
+  </pedidos>
+  <totalizador>
+    <qtdRegistros>1</qtdRegistros>
+    <valorTotalGeral>1000.00</valorTotalGeral>
+  </totalizador>
+</movimento>`}</pre>
+          <p className="subtitulo">
+            O <code>&lt;cabecalho&gt;</code> equivale à linha 0, cada <code>&lt;pedido&gt;</code> a uma linha
+            1, e o <code>&lt;totalizador&gt;</code> à linha 9.
+          </p>
+        </section>
+
+        <section>
+          <h3>Saída</h3>
+          <pre>{`<?xml version="1.0" encoding="UTF-8"?>
+<movimento xmlns="urn:finanweb:saida:1.0"
+           versao="1.0" tipo="SAIDA">
+  <cabecalho>
+    <empresa>Nome da Empresa LTDA</empresa>
+    <cnpj>00000000000000</cnpj>
+    <tipoDocumento>SAIDA</tipoDocumento>
+    <dataArquivo>2026-01-01</dataArquivo>
+    <usuario>usuario</usuario>
+  </cabecalho>
+  <despesas>
+    <despesa status="CONFIRMADO">
+      <fornecedor documento="00099988877000">Nome do Fornecedor</fornecedor>
+      <categoria>Categoria Exemplo</categoria>
+      <valor>500.00</valor>
+      <formaPagamento>Boleto</formaPagamento>
+      <dataPagamento>2026-01-01</dataPagamento>
+    </despesa>
+  </despesas>
+  <totalizador>
+    <qtdRegistros>1</qtdRegistros>
+    <valorTotalGeral>500.00</valorTotalGeral>
+  </totalizador>
+</movimento>`}</pre>
+          <p className="subtitulo">
+            Saída tem um único campo de valor: não existe subtotal, desconto nem frete.
+          </p>
+        </section>
+      </div>
+
+      <h3>O que o schema verifica</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Regra</th>
+            <th>O que é aceito</th>
+            <th>Exemplo recusado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Documento do cliente/fornecedor</td>
+            <td>Só dígitos, 11 (CPF) ou 14 (CNPJ). Obrigatório.</td>
+            <td>
+              <code>0001112223</code> (10 dígitos)
+            </td>
+          </tr>
+          <tr>
+            <td>Status</td>
+            <td>
+              <code>CONFIRMADO</code>, <code>PENDENTE</code> ou <code>CANCELADO</code> — lista fechada
+            </td>
+            <td>
+              <code>APROVADO</code>
+            </td>
+          </tr>
+          <tr>
+            <td>Valores</td>
+            <td>Até 14 dígitos, exatamente 2 casas decimais com ponto, nunca negativo</td>
+            <td>
+              <code>-10.00</code>, <code>1000,00</code>
+            </td>
+          </tr>
+          <tr>
+            <td>Datas</td>
+            <td>
+              <code>AAAA-MM-DD</code>, com hífen
+            </td>
+            <td>
+              <code>20260101</code> (o formato do CSV)
+            </td>
+          </tr>
+          <tr>
+            <td>Percentual de desconto</td>
+            <td>De 0 a 100, com até 2 casas</td>
+            <td>
+              <code>150.00</code>
+            </td>
+          </tr>
+          <tr>
+            <td>Estrutura</td>
+            <td>
+              <code>cabecalho</code> → <code>pedidos</code>/<code>despesas</code> →{" "}
+              <code>totalizador</code>, nessa ordem, com pelo menos um registro. Textos não podem ser vazios
+              nem ter espaço nas pontas.
+            </td>
+            <td>Totalizador antes dos pedidos; arquivo sem nenhum registro</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Diferenças em relação ao CSV</h3>
+      <ul>
+        <li>
+          <strong>Datas com hífen</strong>: no XML é <code>2026-08-13</code>, no CSV é <code>20260813</code>.
+          É o formato de data padrão do XML (<code>xs:date</code>), o mesmo usado por qualquer ferramenta que
+          leia XML.
+        </li>
+        <li>
+          <strong>Status é lista fechada</strong>: no CSV você pode escrever o que quiser no status, e o
+          sistema só trata <code>CANCELADO</code> de forma especial. No XML só os três valores da tabela
+          acima são aceitos — o schema recusa o resto.
+        </li>
+        <li>
+          <strong>Documento tem tamanho conferido</strong>: o CSV aceita qualquer coisa no campo; o XML exige
+          11 ou 14 dígitos.
+        </li>
+        <li>
+          <strong>Vírgula nos nomes pode</strong>: a limitação do CSV (nomes não podem conter vírgula, porque
+          é ela que separa os campos) não existe no XML. Caracteres especiais como <code>&amp;</code>,{" "}
+          <code>&lt;</code> e <code>&gt;</code> precisam ser escapados (<code>&amp;amp;</code>,{" "}
+          <code>&amp;lt;</code>, <code>&amp;gt;</code>), que é o que qualquer biblioteca de XML já faz
+          sozinha.
+        </li>
+        <li>
+          <strong>Arquivo maior</strong>: as tags repetidas em cada registro fazem o XML ocupar cerca de três
+          vezes o tamanho do CSV equivalente. Em troca, ele se descreve sozinho e é validável antes do envio.
+          O limite de envio para XML é de 10 MB.
+        </li>
+      </ul>
+      <p className="subtitulo">
+        Uma coisa que o schema <em>não</em> consegue verificar: contas entre campos, como{" "}
+        <code>valorTotal = subtotal − desconto + frete</code>, ou se o <code>qtdRegistros</code> bate com a
+        quantidade de pedidos no arquivo. Isso é limitação do XSD 1.0 e vale igual para o CSV — o sistema
+        confia no valor que vem no arquivo, como já fazia antes.
+      </p>
+
+      <h3>Exportar em XML</h3>
+      <p>
+        O caminho inverso também funciona: em <a href="/relatorios">Relatórios</a>, escolhendo o formato XML,
+        o sistema gera um arquivo no mesmo formato descrito aqui, com o movimento completo. Dá para exportar
+        e reimportar sem conversão nenhuma no meio. Balanço só sai em CSV, por ser um agregado de três linhas.
+      </p>
+
       <h2>Particularidades</h2>
       <ul>
         <li>
@@ -557,10 +753,11 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
           Categorias.
         </li>
         <li>
-          <strong>Status</strong>: use o que fizer sentido pro seu processo (<code>CONFIRMADO</code>,{" "}
+          <strong>Status</strong>: no CSV, use o que fizer sentido pro seu processo (<code>CONFIRMADO</code>,{" "}
           <code>PENDENTE</code>, etc.). O único valor que o sistema trata de forma especial é{" "}
           <code>CANCELADO</code>: registros com esse status são ignorados na importação (não entram no saldo).
-          Qualquer outro texto é só guardado, sem efeito no cálculo.
+          Qualquer outro texto é só guardado, sem efeito no cálculo. <strong>No XML é diferente</strong>: o
+          schema aceita só <code>CONFIRMADO</code>, <code>PENDENTE</code> e <code>CANCELADO</code>.
         </li>
         <li>
           <strong>Sem vírgula nos nomes</strong>: o parser separa os campos por vírgula simples, então nomes de

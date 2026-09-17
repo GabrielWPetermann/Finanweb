@@ -225,6 +225,48 @@ button[type="button"]:hover {
   background: var(--cor-erro-fundo);
 }
 
+/* Link de download com peso de botao (modelos e schemas em /integrar). O
+   .link-button acima e deliberadamente discreto e e usado no sair, no login
+   e nos filtros, entao nao da para reaproveitar aqui. Continua sendo <a>, e
+   nao <button>: baixar um arquivo e navegacao, e precisa funcionar com abrir
+   em nova aba e com leitor de tela. */
+.botao-download {
+  display: inline-block;
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  border: 1px solid var(--cor-borda);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.botao-download:hover {
+  background: var(--cor-fundo);
+  border-color: var(--cor-primaria);
+  color: var(--cor-primaria);
+}
+
+/* Como .linha-form, mas quebra linha: sao varios botoes de download. */
+.linha-botoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Cartoes lado a lado ocupam a coluna inteira: o max-width de 420px do .card
+   deixaria um vao entre os dois. */
+.grid-2 > .card {
+  max-width: none;
+}
+
+/* O .card ja separa os filhos com gap; a margem propria do h2 empilharia por
+   cima disso e descolaria o titulo do topo. */
+.card > h2 {
+  margin: 0;
+}
+
 .linha-acoes {
   display: flex;
   gap: 8px;

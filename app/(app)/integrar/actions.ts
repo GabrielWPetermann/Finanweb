@@ -6,6 +6,9 @@ import { getUsuarioAtual } from "@/lib/auth";
 import { parseEntradaCsv } from "@/lib/parsers/entrada";
 import { parseSaidaCsv } from "@/lib/parsers/saida";
 import { parseCadastroCsv } from "@/lib/parsers/cadastro";
+import { parseEntradaXml } from "@/lib/parsers/entrada-xml";
+import { parseSaidaXml } from "@/lib/parsers/saida-xml";
+import { SCHEMA_POR_TIPO, validarContraXsd } from "@/lib/xml/validador";
 import { resolverParceiroPorDocumento, importarParceiroCadastro } from "@/lib/parceiros";
 
 export interface ResultadoImportacao {
@@ -33,6 +36,17 @@ function formatarErrosParser(erros: string[]): string {
   return restante > 0 ? `${exibidos} (+${restante} outro(s) problema(s) no arquivo)` : exibidos;
 }
 
+// So para XML: a validacao no XSD monta a arvore inteira em memoria (libxml2
+// em WebAssembly), entao um arquivo muito grande derruba a funcao. O limite
+// nao se aplica ao CSV, que e lido linha a linha como sempre foi.
+const MAX_BYTES_XML = 10 * 1024 * 1024;
+
+function mensagemFormatoInvalido(ehXml: boolean): string {
+  return ehXml
+    ? "Arquivo fora do formato esperado (faltam <cabecalho>, <totalizador> ou registros)."
+    : "Arquivo fora do formato esperado (faltam linhas tipo 0/1/9).";
+}
+
 export async function importarAction(
   _estadoAnterior: ResultadoImportacao,
   formData: FormData
@@ -49,15 +63,34 @@ export async function importarAction(
     return { ok: false, erro: "Selecione o tipo do arquivo." };
   }
   if (!(arquivo instanceof File) || arquivo.size === 0) {
-    return { ok: false, erro: "Selecione um arquivo CSV." };
+    return { ok: false, erro: "Selecione um arquivo CSV ou XML." };
   }
-  if (!arquivo.name.toLowerCase().endsWith(".csv")) {
-    return { ok: false, erro: "O arquivo precisa ter extensão .csv." };
+
+  const nomeArquivo = arquivo.name.toLowerCase();
+  const ehXml = nomeArquivo.endsWith(".xml");
+  if (!ehXml && !nomeArquivo.endsWith(".csv")) {
+    return { ok: false, erro: "O arquivo precisa ter extensão .csv ou .xml." };
+  }
+  if (ehXml && arquivo.size > MAX_BYTES_XML) {
+    return {
+      ok: false,
+      erro: `Arquivo XML muito grande (${(arquivo.size / 1024 / 1024).toFixed(1)} MB). O limite é de 10 MB — divida o movimento em arquivos menores ou envie em CSV.`,
+    };
   }
 
   const conteudo = await arquivo.text();
+  const contentTypeBlob = ehXml ? "application/xml" : "text/csv";
 
   if (tipo === "CLIENTES" || tipo === "FORNECEDORES") {
+    // Cadastro e uma lista plana, sem cabecalho nem totalizador: nao ha XSD
+    // para ele. So Entrada e Saida tem contrato XML.
+    if (ehXml) {
+      return {
+        ok: false,
+        erro: "Cadastro de clientes e fornecedores aceita apenas CSV. O formato XML está disponível para Entrada e Saída.",
+      };
+    }
+
     const resultadoCadastro = parseCadastroCsv(conteudo);
     if (resultadoCadastro.erros.length > 0) {
       return { ok: false, erro: formatarErrosParser(resultadoCadastro.erros) };
@@ -92,12 +125,21 @@ export async function importarAction(
   }
 
   if (tipo === "ENTRADA") {
-    const resultado = parseEntradaCsv(conteudo);
+    // O XSD e conferido antes do parse: o que ele reprova nem chega a ser
+    // interpretado, e os erros ja vem com o numero da linha do arquivo.
+    if (ehXml) {
+      const errosXsd = await validarContraXsd(conteudo, SCHEMA_POR_TIPO.ENTRADA);
+      if (errosXsd.length > 0) {
+        return { ok: false, erro: formatarErrosParser(errosXsd) };
+      }
+    }
+
+    const resultado = ehXml ? parseEntradaXml(conteudo) : parseEntradaCsv(conteudo);
     if (resultado.erros.length > 0) {
       return { ok: false, erro: formatarErrosParser(resultado.erros) };
     }
     if (!resultado.cabecalho || !resultado.totalizador || resultado.pedidos.length === 0) {
-      return { ok: false, erro: "Arquivo fora do formato esperado (faltam linhas tipo 0/1/9)." };
+      return { ok: false, erro: mensagemFormatoInvalido(ehXml) };
     }
 
     const totalizador = resultado.totalizador;
@@ -105,7 +147,7 @@ export async function importarAction(
     try {
       const blob = await put(`entradas/${Date.now()}-${arquivo.name}`, conteudo, {
         access: "private",
-        contentType: "text/csv",
+        contentType: contentTypeBlob,
       });
 
       await prisma.$transaction(async (tx) => {
@@ -161,12 +203,19 @@ export async function importarAction(
     };
   }
 
-  const resultado = parseSaidaCsv(conteudo);
+  if (ehXml) {
+    const errosXsd = await validarContraXsd(conteudo, SCHEMA_POR_TIPO.SAIDA);
+    if (errosXsd.length > 0) {
+      return { ok: false, erro: formatarErrosParser(errosXsd) };
+    }
+  }
+
+  const resultado = ehXml ? parseSaidaXml(conteudo) : parseSaidaCsv(conteudo);
   if (resultado.erros.length > 0) {
     return { ok: false, erro: formatarErrosParser(resultado.erros) };
   }
   if (!resultado.cabecalho || !resultado.totalizador || resultado.despesas.length === 0) {
-    return { ok: false, erro: "Arquivo fora do formato esperado (faltam linhas tipo 0/1/9)." };
+    return { ok: false, erro: mensagemFormatoInvalido(ehXml) };
   }
 
   const totalizador = resultado.totalizador;
@@ -174,7 +223,7 @@ export async function importarAction(
   try {
     const blob = await put(`saidas/${Date.now()}-${arquivo.name}`, conteudo, {
       access: "private",
-      contentType: "text/csv",
+      contentType: contentTypeBlob,
     });
 
     await prisma.$transaction(async (tx) => {

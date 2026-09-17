@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Schema do movimento de Entrada (vendas/recebimentos agrupados por cliente).
+  Equivale ao layout texto de registros 0/1/9 lido por lib/parsers/entrada.ts:
+  os dois formatos produzem exatamente o mesmo EntradaParseResult.
+
+  Namespace em URN (e nao http://) porque o projeto nao tem dominio proprio.
+  A URN identifica o contrato sem prometer um endereco que resolva, e e mais
+  curta, o que conta: o namespace se repete no elemento raiz de todo arquivo.
+
+  Regras de validacao (numeracao usada nos documentos tecnicos):
+    R1  documento do cliente: so digitos, 11 (CPF) ou 14 (CNPJ), obrigatorio.
+        cnpj do cabecalho: exatamente 14 digitos.
+    R2  status do pedido: enumeracao fechada CONFIRMADO | PENDENTE | CANCELADO.
+    R3  valores monetarios: decimal de ate 14 digitos, 2 casas, nunca negativo
+        (espelha o Decimal(14,2) do Prisma).
+    R4  datas: xs:date (AAAA-MM-DD). O "20260101" do layout texto e rejeitado.
+    R5  percentual de desconto: decimal de 0 a 100, com ate 2 casas.
+    R6  estrutura: cabecalho -> pedidos -> totalizador, nessa ordem; ao menos
+        um pedido; textos obrigatorios nao vazios e sem espaco nas pontas.
+
+  Limitacao do XSD 1.0: nao expressa regra entre campos, como
+  valorTotal = subtotal - desconto + frete ou qtdRegistros = count(pedido).
+  Isso exigiria xs:assert (XSD 1.1), que o libxml2 nao suporta. Essas regras
+  sao conferidas em codigo depois do parse, como o parser do layout ja faz.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:e="urn:finanweb:entrada:1.0"
+           targetNamespace="urn:finanweb:entrada:1.0"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <!-- ===================== Tipos simples ===================== -->
+
+  <!-- R6: texto obrigatorio. Nao pode ser vazio nem ter espaco no inicio/fim. -->
+  <xs:simpleType name="textoObrigatorio">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="120"/>
+      <xs:pattern value="\S(.*\S)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R1: CPF (11 digitos) ou CNPJ (14 digitos), so numeros. -->
+  <xs:simpleType name="documentoParceiro">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{11}|\d{14}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R1: CNPJ da empresa emissora, 14 digitos. -->
+  <xs:simpleType name="cnpj">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{14}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R2: status aceitos. CANCELADO e valido no contrato; o parser o descarta
+       e contabiliza em `ignorados`, igual ao layout texto. -->
+  <xs:simpleType name="statusRegistro">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="CONFIRMADO"/>
+      <xs:enumeration value="PENDENTE"/>
+      <xs:enumeration value="CANCELADO"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R3: valor monetario = Decimal(14,2), nao negativo. A virgula decimal e
+       rejeitada pelo proprio xs:decimal. -->
+  <xs:simpleType name="valorMonetario">
+    <xs:restriction base="xs:decimal">
+      <xs:totalDigits value="14"/>
+      <xs:fractionDigits value="2"/>
+      <xs:minInclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R5: percentual de desconto entre 0 e 100, com ate 2 casas. -->
+  <xs:simpleType name="percentual">
+    <xs:restriction base="xs:decimal">
+      <xs:totalDigits value="5"/>
+      <xs:fractionDigits value="2"/>
+      <xs:minInclusive value="0"/>
+      <xs:maxInclusive value="100"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ===================== Tipos complexos ===================== -->
+
+  <xs:complexType name="cabecalho">
+    <xs:sequence>
+      <xs:element name="empresa" type="e:textoObrigatorio"/>
+      <xs:element name="cnpj" type="e:cnpj"/>
+      <xs:element name="tipoDocumento" type="e:textoObrigatorio"/>
+      <xs:element name="dataArquivo" type="xs:date"/>          <!-- R4 -->
+      <xs:element name="usuario" type="e:textoObrigatorio"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Nome do cliente no conteudo, documento (R1) como atributo obrigatorio:
+       o nome e o dado, o documento e o que identifica o registro. -->
+  <xs:complexType name="cliente">
+    <xs:simpleContent>
+      <xs:extension base="e:textoObrigatorio">
+        <xs:attribute name="documento" type="e:documentoParceiro" use="required"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- Valor do desconto no conteudo (R3), percentual (R5) como atributo. -->
+  <xs:complexType name="desconto">
+    <xs:simpleContent>
+      <xs:extension base="e:valorMonetario">
+        <xs:attribute name="percentual" type="e:percentual" use="required"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="pedido">
+    <xs:sequence>
+      <xs:element name="cliente" type="e:cliente"/>
+      <xs:element name="categoria" type="e:textoObrigatorio"/>
+      <xs:element name="subtotal" type="e:valorMonetario"/>
+      <xs:element name="desconto" type="e:desconto"/>
+      <xs:element name="frete" type="e:valorMonetario"/>
+      <xs:element name="valorTotal" type="e:valorMonetario"/>
+      <xs:element name="formaPagamento" type="e:textoObrigatorio"/>
+      <xs:element name="dataPedido" type="xs:date"/>           <!-- R4 -->
+    </xs:sequence>
+    <xs:attribute name="status" type="e:statusRegistro" use="required"/>  <!-- R2 -->
+  </xs:complexType>
+
+  <!-- R6: pelo menos um pedido, sem limite superior. -->
+  <xs:complexType name="pedidos">
+    <xs:sequence>
+      <xs:element name="pedido" type="e:pedido" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="totalizador">
+    <xs:sequence>
+      <xs:element name="qtdRegistros" type="xs:positiveInteger"/>
+      <xs:element name="valorTotalGeral" type="e:valorMonetario"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ===================== Elemento raiz ===================== -->
+
+  <!-- R6: a ordem cabecalho -> pedidos -> totalizador e obrigatoria.
+       `versao` fixa permite evoluir o contrato sem quebrar quem ja integra:
+       um schema v2 aceitaria versao="2.0" e este continuaria valendo. -->
+  <xs:element name="movimento">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="cabecalho" type="e:cabecalho"/>
+        <xs:element name="pedidos" type="e:pedidos"/>
+        <xs:element name="totalizador" type="e:totalizador"/>
+      </xs:sequence>
+      <xs:attribute name="versao" type="xs:string" use="required" fixed="1.0"/>
+      <xs:attribute name="tipo" type="xs:string" use="required" fixed="ENTRADA"/>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

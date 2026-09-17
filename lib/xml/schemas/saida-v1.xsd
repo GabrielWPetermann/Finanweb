@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Schema do movimento de Saida (despesas/pagamentos agrupados por fornecedor).
+  Equivale ao layout texto de registros 0/1/9 lido por lib/parsers/saida.ts:
+  os dois formatos produzem exatamente o mesmo SaidaParseResult.
+
+  Mesma espinha dorsal do entrada-v1.xsd, com tres diferencas: a colecao e
+  <despesas>/<despesa>, o parceiro e o fornecedor, e ha um unico campo de
+  valor (Saida nao tem subtotal, desconto nem frete).
+
+  Os tipos simples sao repetidos aqui em vez de virem de um schema comum por
+  xs:import. E duplicacao deliberada: assim cada schema e um arquivo unico,
+  que o parceiro baixa e usa sem precisar resolver dependencia de import no
+  toolchain dele. Entrada e Saida tambem sao contratos independentes e podem
+  versionar em ritmos diferentes.
+
+  Regras de validacao (mesma numeracao do entrada-v1.xsd):
+    R1  documento do fornecedor: so digitos, 11 (CPF) ou 14 (CNPJ).
+    R2  status: enumeracao fechada CONFIRMADO | PENDENTE | CANCELADO.
+    R3  valores monetarios: decimal de ate 14 digitos, 2 casas, nao negativo.
+    R4  datas: xs:date (AAAA-MM-DD).
+    R6  estrutura: cabecalho -> despesas -> totalizador, nessa ordem; ao menos
+        uma despesa; textos obrigatorios nao vazios e sem espaco nas pontas.
+
+  R5 (percentual) nao se aplica: Saida nao tem desconto.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:s="urn:finanweb:saida:1.0"
+           targetNamespace="urn:finanweb:saida:1.0"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <!-- ===================== Tipos simples ===================== -->
+
+  <!-- R6: texto obrigatorio. Nao pode ser vazio nem ter espaco no inicio/fim. -->
+  <xs:simpleType name="textoObrigatorio">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="120"/>
+      <xs:pattern value="\S(.*\S)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R1: CPF (11 digitos) ou CNPJ (14 digitos), so numeros. -->
+  <xs:simpleType name="documentoParceiro">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{11}|\d{14}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R1: CNPJ da empresa emissora, 14 digitos. -->
+  <xs:simpleType name="cnpj">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{14}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R2: status aceitos. CANCELADO e valido no contrato; o parser o descarta
+       e contabiliza em `ignorados`, igual ao layout texto. -->
+  <xs:simpleType name="statusRegistro">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="CONFIRMADO"/>
+      <xs:enumeration value="PENDENTE"/>
+      <xs:enumeration value="CANCELADO"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R3: valor monetario = Decimal(14,2), nao negativo. -->
+  <xs:simpleType name="valorMonetario">
+    <xs:restriction base="xs:decimal">
+      <xs:totalDigits value="14"/>
+      <xs:fractionDigits value="2"/>
+      <xs:minInclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ===================== Tipos complexos ===================== -->
+
+  <xs:complexType name="cabecalho">
+    <xs:sequence>
+      <xs:element name="empresa" type="s:textoObrigatorio"/>
+      <xs:element name="cnpj" type="s:cnpj"/>
+      <xs:element name="tipoDocumento" type="s:textoObrigatorio"/>
+      <xs:element name="dataArquivo" type="xs:date"/>          <!-- R4 -->
+      <xs:element name="usuario" type="s:textoObrigatorio"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Nome do fornecedor no conteudo, documento (R1) como atributo. -->
+  <xs:complexType name="fornecedor">
+    <xs:simpleContent>
+      <xs:extension base="s:textoObrigatorio">
+        <xs:attribute name="documento" type="s:documentoParceiro" use="required"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="despesa">
+    <xs:sequence>
+      <xs:element name="fornecedor" type="s:fornecedor"/>
+      <xs:element name="categoria" type="s:textoObrigatorio"/>
+      <xs:element name="valor" type="s:valorMonetario"/>       <!-- R3 -->
+      <xs:element name="formaPagamento" type="s:textoObrigatorio"/>
+      <xs:element name="dataPagamento" type="xs:date"/>        <!-- R4 -->
+    </xs:sequence>
+    <xs:attribute name="status" type="s:statusRegistro" use="required"/>  <!-- R2 -->
+  </xs:complexType>
+
+  <!-- R6: pelo menos uma despesa, sem limite superior. -->
+  <xs:complexType name="despesas">
+    <xs:sequence>
+      <xs:element name="despesa" type="s:despesa" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="totalizador">
+    <xs:sequence>
+      <xs:element name="qtdRegistros" type="xs:positiveInteger"/>
+      <xs:element name="valorTotalGeral" type="s:valorMonetario"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ===================== Elemento raiz ===================== -->
+
+  <!-- R6: a ordem cabecalho -> despesas -> totalizador e obrigatoria. -->
+  <xs:element name="movimento">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="cabecalho" type="s:cabecalho"/>
+        <xs:element name="despesas" type="s:despesas"/>
+        <xs:element name="totalizador" type="s:totalizador"/>
+      </xs:sequence>
+      <xs:attribute name="versao" type="xs:string" use="required" fixed="1.0"/>
+      <xs:attribute name="tipo" type="xs:string" use="required" fixed="SAIDA"/>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>
