@@ -27,8 +27,15 @@ export function IntegrarForm() {
       </div>
 
       <div className="campo">
-        <label htmlFor="arquivo">Arquivo CSV</label>
-        <input type="file" id="arquivo" name="arquivo" accept=".csv,text/csv" required />
+        <label htmlFor="arquivo">Arquivo</label>
+        <input
+          type="file"
+          id="arquivo"
+          name="arquivo"
+          accept=".csv,.xml,text/csv,application/xml,text/xml"
+          required
+        />
+        <small>CSV ou XML para Entrada e Saída. Somente CSV para cadastro de Clientes/Fornecedores.</small>
       </div>
 
       <button type="submit" disabled={pending}>

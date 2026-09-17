@@ -24,9 +24,15 @@ export async function GET(request: NextRequest) {
     return new NextResponse("Arquivo não encontrado", { status: 404 });
   }
 
+  // O tipo vem da extensao do arquivo importado: desde que Entrada e Saida
+  // aceitam XML, devolver text/csv fixo entregaria XML com o tipo errado.
+  const contentType = importacao.nomeArquivo.toLowerCase().endsWith(".xml")
+    ? "application/xml; charset=utf-8"
+    : "text/csv; charset=utf-8";
+
   return new NextResponse(resultado.stream, {
     headers: {
-      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Type": contentType,
       "Content-Disposition": `attachment; filename="${importacao.nomeArquivo}"`,
       "Cache-Control": "private, no-cache",
     },

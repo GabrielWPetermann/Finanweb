@@ -1,8 +1,9 @@
-// Gera os arquivos-modelo de CSV (Entrada e Saida) disponibilizados na tela
-// de integracao, para quem for preencher o arquivo na mao ter um ponto de
-// partida ja no formato certo.
+// Gera os arquivos-modelo (CSV e XML) disponibilizados na tela de integracao,
+// para quem for preencher o arquivo na mao ter um ponto de partida ja no
+// formato certo.
 
 import { linhaCsv, montarCsv } from "@/lib/csv-writer";
+import { gerarXmlEntrada, gerarXmlSaida } from "@/lib/xml-writer";
 
 export function gerarModeloEntradaCsv(): string {
   const linhas = [
@@ -62,4 +63,61 @@ export function gerarModeloSaidaCsv(): string {
   ];
 
   return montarCsv(linhas);
+}
+
+// --------------------------------------------------------------------- XML
+//
+// Os modelos XML saem do mesmo escritor usado na exportacao, entao o que o
+// usuario baixa aqui e exatamente o que o sistema produz -- e valida contra
+// lib/xml/schemas/*.xsd sem nenhum ajuste.
+//
+// O documento do fornecedor usa 14 digitos (CNPJ), e nao o valor de 17 do
+// modelo CSV acima: o layout texto nao confere tamanho, mas o XSD so aceita
+// 11 (CPF) ou 14 (CNPJ).
+
+const CABECALHO_MODELO = {
+  nomeEmpresa: "Nome da Empresa LTDA",
+  cnpj: "00000000000000",
+  dataArquivo: "20260101",
+  usuario: "usuario",
+};
+
+export function gerarModeloEntradaXml(): string {
+  return gerarXmlEntrada(
+    { ...CABECALHO_MODELO, tipoDocumento: "ENTRADA" },
+    [
+      {
+        cliente: "Nome do Cliente",
+        documento: "00011122233",
+        categoria: "Categoria Exemplo",
+        subtotal: 1000,
+        descontoPercentual: 0,
+        descontoValor: 0,
+        frete: 0,
+        valorTotal: 1000,
+        formaPagamento: "Boleto",
+        dataPedido: "20260101",
+        status: "CONFIRMADO",
+      },
+    ],
+    { qtdRegistros: 1, valorTotalGeral: 1000 }
+  );
+}
+
+export function gerarModeloSaidaXml(): string {
+  return gerarXmlSaida(
+    { ...CABECALHO_MODELO, tipoDocumento: "SAIDA" },
+    [
+      {
+        fornecedor: "Nome do Fornecedor",
+        documento: "00099988877000",
+        categoria: "Categoria Exemplo",
+        valor: 500,
+        formaPagamento: "Boleto",
+        dataPagamento: "20260101",
+        status: "CONFIRMADO",
+      },
+    ],
+    { qtdRegistros: 1, valorTotalGeral: 500 }
+  );
 }
