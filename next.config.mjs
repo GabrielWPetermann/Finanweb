@@ -5,10 +5,13 @@ const nextConfig = {
   // xmllint-node.js"), entao ele fica externo e e resolvido do node_modules.
   serverExternalPackages: ["xmllint-wasm"],
 
-  // Os .xsd sao lidos do disco em runtime. Sem isso eles nao entram no bundle
-  // de deploy (serverless) e a validacao falha so em producao.
+  // Arquivos lidos por caminho em runtime, que o tracing do Next nao enxerga
+  // (ele so segue require/import). Sem isso eles nao entram no bundle de
+  // deploy (serverless) e a validacao falha so em producao:
+  //   - os .xsd, lidos pelo lib/xml/validador.ts;
+  //   - o xmllint.wasm, que o proprio xmllint-wasm carrega de __dirname.
   outputFileTracingIncludes: {
-    "/**": ["./lib/xml/schemas/**/*.xsd"],
+    "/**": ["./lib/xml/schemas/**/*.xsd", "./node_modules/xmllint-wasm/*.wasm"],
   },
 };
 
