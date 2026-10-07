@@ -178,6 +178,49 @@ Exportação: `/relatorios/export?formato=xml&tipo=ENTRADAS|SAIDAS` gera o
 movimento completo e **confere a própria saída contra o XSD** antes de
 devolver o arquivo. Balanço não tem XML.
 
+### Troca de XML via socket
+
+Além do upload, Entrada e Saída em XML também trafegam entre sistemas por
+**socket TCP**, passando pelo servidor de chat da disciplina
+(`electronicsystems.com.br:5000` por padrão). O protocolo é de texto, uma
+mensagem por linha; arquivo vai em pedaços de 4 KB, cada um precedido de
+`/arquivo <tamanho> <nome>` (com `#destino` na frente para mandar a um só),
+e um pedaço de tamanho 0 marca o fim.
+
+São duas metades, porque a Vercel não segura uma conexão aberta:
+
+- **Envio** (`/socket`, dentro do sistema): abre a conexão, manda e fecha.
+  Envia o movimento de um período (o mesmo XML de `/relatorios`, já
+  conferido no XSD) ou um XML escolhido do computador, para todos os
+  conectados ou para um nome/id. Antes de mandar, pergunta ao servidor quem
+  está conectado: destino inexistente vira erro na tela, sem subir o arquivo.
+- **Recebimento** (`npm run socket`, processo separado): o ouvinte fica
+  conectado como `finanweb`. Cada XML que chega é conferido no XSD e, se
+  válido, guardado no Vercel Blob em `socket-recebidos/` — uma caixa de
+  entrada, sem migration no banco. O remetente recebe a resposta no próprio
+  chat, em privado: aceito, ou o motivo da recusa (não é XML, namespace
+  desconhecido, erro de XSD com a linha). Feito para ficar ligado direto:
+  cai a conexão, ele reconecta; manda um `/lista` por minuto e, se o servidor
+  para de responder (queda de rede silenciosa), derruba e reconecta; e se o
+  nome `finanweb` ainda estiver preso na conexão antiga, insiste até pegar.
+
+Nada recebido entra no saldo sozinho: em `/socket` cada arquivo da caixa de
+entrada tem **Importar** (o mesmo caminho do `/integrar` — XSD, parser, Blob
+e banco — e o arquivo vai para o Histórico em nome de quem aprovou) ou
+**Descartar**.
+
+Como o ouvinte só recebe enquanto está rodando (o servidor de chat não
+guarda mensagem para quem está offline), ele precisa estar no ar durante a
+troca. Ele lê o `.env` do projeto, então roda em qualquer máquina com o
+repositório e o `BLOB_READ_WRITE_TOKEN`:
+
+```bash
+npm run socket
+```
+
+O botão **Ver quem está conectado** em `/socket` mostra se o ouvinte está no
+ar.
+
 ### Cadastros (clientes e fornecedores)
 
 Cliente e fornecedor não são mais texto solto: são um cadastro (`Parceiro`,
@@ -230,6 +273,7 @@ simples) ou cadastrar uma nova manualmente.
 | `/login` | Login (username + senha) | público |
 | `/` | Dashboard: saldo geral, top clientes, top fornecedores | autenticado |
 | `/integrar` | Upload de CSV (Entrada, Saída, Clientes ou Fornecedores) | autenticado |
+| `/socket` | Envia XML pelo servidor de chat e aprova os XMLs recebidos pelo ouvinte | autenticado |
 | `/recebimentos` | Recebimentos (de CSV ou lançados na mão): listar, filtrar, criar, editar; excluir é ADMIN | autenticado |
 | `/pagamentos` | Pagamentos (de CSV ou lançados na mão): listar, filtrar, criar, editar; excluir é ADMIN | autenticado |
 | `/historico` | Log de arquivos importados, com link de download do CSV original | autenticado |
@@ -246,6 +290,9 @@ Ver [.env.example](.env.example):
 DATABASE_URL=              # Neon Postgres, via integração Vercel Marketplace
 BLOB_READ_WRITE_TOKEN=     # gerado ao instalar o addon Vercel Blob no projeto
 SESSION_COOKIE_NAME=sf_sessao
+SOCKET_HOST=               # servidor de chat; vazio = electronicsystems.com.br
+SOCKET_PORTA=              # vazio = 5000
+SOCKET_NOME=finanweb       # nome do ouvinte no chat (o envio usa <nome>-envio)
 ```
 
 ## Rodando localmente
@@ -284,6 +331,8 @@ ar):
 - Importação de XML tem limite de 10 MB, porque a validação monta a árvore
   inteira em memória. CSV segue sem limite, lido linha a linha.
 - Cadastro de Clientes e Fornecedores só aceita CSV — é lista plana, sem XSD.
+- O recebimento por socket depende do ouvinte (`npm run socket`) estar
+  rodando: o servidor de chat não guarda arquivo para quem está offline.
 - A importação não guarda em coluna própria o formato do arquivo; ele é
   deduzido da extensão em `nomeArquivo`. Foi uma decisão para não exigir
   migration no banco.
