@@ -31,6 +31,11 @@ export function lerSchema(nome: SchemaXml): string {
   return conteudo;
 }
 
+// So para XML: a validacao no XSD monta a arvore inteira em memoria (libxml2
+// em WebAssembly), entao um arquivo muito grande derruba a funcao. O limite
+// nao se aplica ao CSV, que e lido linha a linha como sempre foi.
+export const MAX_BYTES_XML = 10 * 1024 * 1024;
+
 // XML de muitos registros passa facil de 5 MB; o limite padrao (32 MiB) fica
 // apertado para a arvore em memoria do libxml2.
 const MAX_MEMORIA = 512 * memoryPages.MiB;
