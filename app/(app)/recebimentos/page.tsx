@@ -106,8 +106,7 @@ export default async function RecebimentosPage({ searchParams }: Props) {
 
       <h2>Novo recebimento</h2>
       <p className="subtitulo">
-        Lança um recebimento direto, sem precisar importar um CSV. Se o cliente ainda não está cadastrado,
-        escolhe &quot;+ Criar novo...&quot; no seletor.
+        Lançamento manual. Para um cliente novo, use &quot;+ Criar novo...&quot; no seletor.
       </p>
       <form action={criarRecebimentoAction} className="card card-formulario">
         <div className="grid-2">

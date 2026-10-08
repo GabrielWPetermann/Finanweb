@@ -32,9 +32,7 @@ export default function RelatoriosPage() {
       </form>
 
       <p className="subtitulo">
-        O XML sai no mesmo formato aceito pela tela de integrar, com o movimento completo — dá para
-        exportar aqui e reimportar sem conversão. Balanço só existe em CSV: é um agregado de três
-        linhas, sem contrato de intercâmbio.
+        O XML segue o mesmo formato aceito em Integrar. Balanço é exportado apenas em CSV.
       </p>
     </div>
   );

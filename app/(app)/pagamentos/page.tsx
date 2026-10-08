@@ -102,8 +102,7 @@ export default async function PagamentosPage({ searchParams }: Props) {
 
       <h2>Novo pagamento</h2>
       <p className="subtitulo">
-        Lança um pagamento direto, sem precisar importar um CSV. Se o fornecedor ainda não está cadastrado,
-        escolhe &quot;+ Criar novo...&quot; no seletor.
+        Lançamento manual. Para um fornecedor novo, use &quot;+ Criar novo...&quot; no seletor.
       </p>
       <form action={criarPagamentoAction} className="card card-formulario">
         <div className="grid-2">

@@ -5,17 +5,14 @@ export default function IntegrarPage() {
     <div>
       <h1>Integrar arquivo</h1>
       <p className="subtitulo">
-        Entrada e Saída aceitam CSV ou XML — os dois carregam a mesma informação, escolha o que for mais
-        fácil de gerar do seu lado. Cadastro de Clientes e Fornecedores só em CSV.
+        Entrada e Saída em CSV ou XML. Clientes e Fornecedores apenas em CSV.{" "}
+        <a href="/documentacao">Formatos aceitos</a>
       </p>
 
       <div className="grid-2">
         <div className="card">
           <h2>CSV</h2>
-          <span className="card-label">
-            O layout de sempre, em linhas <code>0</code> (cabeçalho), <code>1</code> (registro) e{" "}
-            <code>9</code> (totalizador). Baixe um modelo e preencha em cima dele:
-          </span>
+          <span className="card-label">Modelos:</span>
           <div className="linha-botoes">
             <a href="/integrar/modelo?tipo=ENTRADA" className="botao-download">
               Entrada
@@ -34,10 +31,7 @@ export default function IntegrarPage() {
 
         <div className="card">
           <h2>XML</h2>
-          <span className="card-label">
-            Mesmo conteúdo, com um schema formal por trás. O sistema recusa qualquer XML fora do schema,
-            apontando a regra violada e a linha:
-          </span>
+          <span className="card-label">Modelos:</span>
           <div className="linha-botoes">
             <a href="/integrar/modelo?tipo=ENTRADA&formato=xml" className="botao-download">
               Entrada
@@ -47,9 +41,7 @@ export default function IntegrarPage() {
             </a>
           </div>
 
-          <span className="card-label">
-            Vai gerar o XML por um sistema próprio? Baixe o schema (XSD) e valide o arquivo antes de enviar:
-          </span>
+          <span className="card-label">Schemas (XSD), para validar o arquivo antes do envio:</span>
           <div className="linha-botoes">
             <a href="/integrar/schema?tipo=ENTRADA" className="botao-download">
               XSD de Entrada
@@ -60,7 +52,7 @@ export default function IntegrarPage() {
           </div>
 
           <a href="/documentacao#xml" className="link-button">
-            Como montar o XML
+            Formato XML
           </a>
         </div>
       </div>
