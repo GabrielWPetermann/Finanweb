@@ -18,6 +18,20 @@ export interface EstadoConectados {
   atualizadoEm: string | null; // ISO
 }
 
+/**
+ * Quem vai receber: o destino (nome ou id) ou, sem destino, todos menos o
+ * proprio ouvinte. Lista vazia = ninguem para receber.
+ */
+export function resolverDestinatarios(conectados: string[], destino: string | null, nomeOuvinte: string): string[] {
+  return conectados.filter((rotulo) => {
+    const separador = rotulo.lastIndexOf("#");
+    const nome = rotulo.slice(0, separador).toLowerCase();
+    const id = rotulo.slice(separador + 1);
+    if (destino) return id === destino || nome === destino.toLowerCase();
+    return nome !== nomeOuvinte.toLowerCase();
+  });
+}
+
 export async function gravarConectados(conectados: string[]): Promise<void> {
   await prisma.estadoOuvinte.upsert({
     where: { id: ID },

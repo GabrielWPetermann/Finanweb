@@ -5,9 +5,10 @@ import { getUsuarioAtual } from "@/lib/auth";
 import { gerarMovimentoXml } from "@/lib/exportacao-xml";
 import { importarMovimento, type ResultadoImportacao } from "@/lib/importacao";
 import { MAX_BYTES_XML } from "@/lib/xml/validador";
-import { enviarArquivo } from "@/lib/socket/cliente";
+import { aguardarEnvio, enfileirarArquivo } from "@/lib/socket/chat";
+import { SOCKET_NOME } from "@/lib/socket/config";
 import { normalizarDestino } from "@/lib/socket/protocolo";
-import { lerConectados, type EstadoConectados } from "@/lib/socket/estado";
+import { lerConectados, resolverDestinatarios, type EstadoConectados } from "@/lib/socket/estado";
 import { descartarRecebido, lerRecebido } from "@/lib/socket/caixa-entrada";
 
 export interface ResultadoEnvio {
@@ -15,7 +16,12 @@ export interface ResultadoEnvio {
   erro?: string;
   nomeArquivo?: string;
   destinatarios?: string[];
+  // Entrou na fila, mas o ouvinte ainda nao mandou dentro do prazo.
+  pendente?: boolean;
 }
+
+// Quanto a tela espera o ouvinte confirmar o envio (ele olha a fila a cada 1,5 s).
+const PRAZO_CONFIRMACAO_MS = 8000;
 
 const SESSAO_EXPIRADA = "Sessão expirada. Faça login novamente.";
 
@@ -72,9 +78,26 @@ export async function enviarSocketAction(
     conteudo = Buffer.from(resultado.xml, "utf8");
   }
 
-  const envio = await enviarArquivo(nomeArquivo, conteudo, destino);
-  if (!envio.ok) return { ok: false, erro: envio.erro };
-  return { ok: true, nomeArquivo, destinatarios: envio.destinatarios };
+  // Confere antes com a lista que o ouvinte mantem: o servidor so avisaria
+  // "destino nao encontrado" depois do arquivo inteiro ter subido.
+  const estado = await lerConectados();
+  if (!estado.ouvinteOnline) {
+    return { ok: false, erro: "Desconectado do servidor. Tente de novo quando a conexão voltar." };
+  }
+  const destinatarios = resolverDestinatarios(estado.conectados, destino, SOCKET_NOME);
+  if (destinatarios.length === 0) {
+    const outros = resolverDestinatarios(estado.conectados, null, SOCKET_NOME);
+    return {
+      ok: false,
+      erro: destino
+        ? `"${destino}" não está conectado. Na sala: ${outros.join(", ") || "ninguém"}.`
+        : "Não há outros sistemas conectados para receber o arquivo.",
+    };
+  }
+
+  const id = await enfileirarArquivo(usuario.username, nomeArquivo, conteudo, destino);
+  const enviado = await aguardarEnvio(id, PRAZO_CONFIRMACAO_MS);
+  return { ok: true, nomeArquivo, destinatarios, pendente: !enviado };
 }
 
 // Le o que o ouvinte gravou, sem abrir conexao: perguntar direto ao servidor

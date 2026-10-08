@@ -105,6 +105,7 @@ export function PainelChat({
               <div className="chat-meta">
                 <strong>{m.autor}</strong>
                 {m.direcao === "ENVIADA" && <span> → {m.destino ?? "todos"}</span>}
+                {m.arquivo && <span className="chat-etiqueta">arquivo</span>}
                 {m.privada && <span className="chat-etiqueta">privada</span>}
                 <time suppressHydrationWarning>{hora(m.criadoEm)}</time>
                 {!m.enviada && <span className="chat-etiqueta">pendente</span>}

@@ -58,6 +58,43 @@ export async function enfileirarMensagem(autor: string, texto: string, destino: 
   });
 }
 
+/**
+ * Enfileira um arquivo da tela /socket. O ouvinte manda em pedacos pela
+ * conexao dele: abrir uma conexao so para isso fazia o servidor anunciar
+ * "entrou/saiu" para a turma, e a resposta de quem recebia ia para uma
+ * conexao que ja tinha fechado.
+ */
+export async function enfileirarArquivo(
+  autor: string,
+  nomeArquivo: string,
+  conteudo: Buffer,
+  destino: string | null
+): Promise<string> {
+  const mensagem = await prisma.mensagemChat.create({
+    data: {
+      direcao: "ENVIADA",
+      autor,
+      texto: nomeArquivo,
+      destino,
+      privada: destino !== null,
+      arquivoNome: nomeArquivo,
+      arquivo: new Uint8Array(conteudo),
+    },
+  });
+  return mensagem.id;
+}
+
+/** Espera o ouvinte mandar a mensagem; false se nao saiu dentro do prazo. */
+export async function aguardarEnvio(id: string, prazoMs: number): Promise<boolean> {
+  const limite = Date.now() + prazoMs;
+  while (Date.now() < limite) {
+    const mensagem = await prisma.mensagemChat.findUnique({ where: { id }, select: { enviadaEm: true } });
+    if (mensagem?.enviadaEm) return true;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return false;
+}
+
 export async function pegarFila(limite = 20) {
   return prisma.mensagemChat.findMany({
     where: { direcao: "ENVIADA", enviadaEm: null },
@@ -88,13 +125,19 @@ export interface MensagemTela {
   privada: boolean;
   aviso: boolean;
   texto: string;
+  arquivo: string | null; // nome do arquivo, quando a mensagem e um envio de arquivo
   criadoEm: string; // ISO
   enviada: boolean;
 }
 
 /** As ultimas mensagens, da mais antiga para a mais nova. */
 export async function ultimasMensagens(limite = 150): Promise<MensagemTela[]> {
-  const mensagens = await prisma.mensagemChat.findMany({ orderBy: { criadoEm: "desc" }, take: limite });
+  // Sem o conteudo dos arquivos: a tela so mostra o nome.
+  const mensagens = await prisma.mensagemChat.findMany({
+    orderBy: { criadoEm: "desc" },
+    take: limite,
+    omit: { arquivo: true },
+  });
   return mensagens.reverse().map((m) => ({
     id: m.id,
     direcao: m.direcao,
@@ -103,6 +146,7 @@ export async function ultimasMensagens(limite = 150): Promise<MensagemTela[]> {
     privada: m.privada,
     aviso: m.aviso,
     texto: m.texto,
+    arquivo: m.arquivoNome,
     criadoEm: m.criadoEm.toISOString(),
     // RECEBIDA ja chegou; ENVIADA so depois que o ouvinte mandou.
     enviada: m.direcao === "RECEBIDA" || m.enviadaEm !== null,

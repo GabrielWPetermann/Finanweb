@@ -187,13 +187,18 @@ mensagem por linha; arquivo vai em pedaços de 4 KB, cada um precedido de
 `/arquivo <tamanho> <nome>` (com `#destino` na frente para mandar a um só),
 e um pedaço de tamanho 0 marca o fim.
 
-São duas metades, porque a Vercel não segura uma conexão aberta:
+A Vercel não segura uma conexão aberta, então quem fica conectado é um
+processo separado, o ouvinte, e o banco faz a ponte com a tela:
 
-- **Envio** (`/socket`, dentro do sistema): abre a conexão, manda e fecha.
-  Envia o movimento de um período (o mesmo XML de `/relatorios`, já
-  conferido no XSD) ou um XML escolhido do computador, para todos os
-  conectados ou para um nome/id. Antes de mandar, pergunta ao servidor quem
-  está conectado: destino inexistente vira erro na tela, sem subir o arquivo.
+- **Envio** (`/socket`): a tela coloca o arquivo numa fila no banco
+  (`MensagemChat`, colunas `arquivoNome`/`arquivo`) e o ouvinte manda em
+  pedaços pela conexão dele. Envia o movimento de um período (o mesmo XML de
+  `/relatorios`, já conferido no XSD) ou um XML escolhido do computador, para
+  todos os conectados ou para um nome/id. O destino é conferido antes, na
+  lista de conectados que o ouvinte mantém. A tela espera até 8 s pela
+  confirmação do envio. Não abrir conexão própria evita o "entrou/saiu" para
+  a turma a cada envio, e o envio geral do servidor não devolve o arquivo
+  para quem mandou — ele não volta para a nossa caixa de entrada.
 - **Recebimento** (`npm run socket`, processo separado): o ouvinte fica
   conectado como `finanweb`. Cada XML que chega é conferido no XSD e, se
   válido, guardado no Vercel Blob em `socket-recebidos/` — uma caixa de
@@ -319,7 +324,7 @@ BLOB_READ_WRITE_TOKEN=     # gerado ao instalar o addon Vercel Blob no projeto
 SESSION_COOKIE_NAME=sf_sessao
 SOCKET_HOST=               # servidor de chat; vazio = electronicsystems.com.br
 SOCKET_PORTA=              # vazio = 5000
-SOCKET_NOME=finanweb       # nome do ouvinte no chat (o envio usa <nome>-envio)
+SOCKET_NOME=finanweb       # nome do Finanweb no servidor de chat
 ```
 
 ## Rodando localmente

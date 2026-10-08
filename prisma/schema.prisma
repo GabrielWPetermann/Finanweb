@@ -147,6 +147,10 @@ model MensagemChat {
   criadoEm  DateTime        @default(now())
   // So ENVIADA: quando o ouvinte mandou pelo socket. null = na fila.
   enviadaEm DateTime?
+  // So ENVIADA de arquivo (tela /socket): o ouvinte manda o conteudo em
+  // pedacos pela conexao dele, em vez de a tela abrir uma conexao propria.
+  arquivoNome String?
+  arquivo     Bytes?
 
   @@index([criadoEm])
   @@index([direcao, enviadaEm])

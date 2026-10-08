@@ -86,10 +86,13 @@ export function EnviarForm() {
       </button>
 
       {resultado.erro && <p className="erro">{resultado.erro}</p>}
-      {resultado.ok && (
+      {resultado.ok && !resultado.pendente && (
         <p className="sucesso">
           {resultado.nomeArquivo} enviado para {resultado.destinatarios?.join(", ")}.
         </p>
+      )}
+      {resultado.ok && resultado.pendente && (
+        <p className="sucesso">{resultado.nomeArquivo} está na fila de envio e sai em instantes.</p>
       )}
     </form>
   );

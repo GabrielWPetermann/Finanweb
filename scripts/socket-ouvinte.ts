@@ -13,7 +13,13 @@
 import net from "node:net";
 import { MAX_BYTES_XML, SCHEMA_POR_TIPO, validarContraXsd } from "@/lib/xml/validador";
 import { SOCKET_HOST, SOCKET_NOME, SOCKET_PORTA } from "@/lib/socket/config";
-import { LeitorProtocolo, lerListaConectados, linhaDeTexto, type PedacoRecebido } from "@/lib/socket/protocolo";
+import {
+  LeitorProtocolo,
+  lerListaConectados,
+  linhaDeTexto,
+  montarPedacos,
+  type PedacoRecebido,
+} from "@/lib/socket/protocolo";
 import { gravarConectados } from "@/lib/socket/estado";
 import { detectarTipoMovimento, guardarRecebido } from "@/lib/socket/caixa-entrada";
 import {
@@ -189,9 +195,18 @@ function conectar() {
     enviandoFila = true;
     try {
       for (const mensagem of await pegarFila()) {
-        socket.write(linhaParaEnviar(mensagem));
+        if (mensagem.arquivo && mensagem.arquivoNome) {
+          // Destino null = envio geral do servidor, que nao devolve para quem
+          // mandou: o arquivo nao volta para a nossa propria caixa de entrada.
+          for (const pedaco of montarPedacos(mensagem.arquivoNome, Buffer.from(mensagem.arquivo), mensagem.destino)) {
+            socket.write(pedaco);
+          }
+          log(`arquivo: [${mensagem.autor}] -> ${mensagem.destino ?? "todos"}: ${mensagem.arquivoNome}`);
+        } else {
+          socket.write(linhaParaEnviar(mensagem));
+          log(`chat: [${mensagem.autor}] -> ${mensagem.destino ?? "todos"}: ${mensagem.texto}`);
+        }
         await marcarEnviada(mensagem.id);
-        log(`chat: [${mensagem.autor}] -> ${mensagem.destino ?? "todos"}: ${mensagem.texto}`);
       }
     } catch (erro) {
       log(`erro na fila do chat: ${String(erro)}`);
