@@ -82,6 +82,19 @@ export function montarPedacos(nomeArquivo: string, conteudo: Buffer, destino: st
   }
 }
 
+/**
+ * Destino digitado na tela -> o que o servidor entende: nome ou id. Aceita
+ * tambem o rotulo "nome#id" que aparece na lista de conectados, usando o id
+ * (o servidor so procura por nome ou por id, e "berna#29" nao e nenhum dos
+ * dois). "#ana" vira "ana"; vazio = null (todos).
+ */
+export function normalizarDestino(texto: string): string | null {
+  const destino = texto.trim().replace(/^#/, "");
+  if (!destino) return null;
+  const rotulo = /^.+#(\d+)$/.exec(destino);
+  return rotulo ? rotulo[1] : destino;
+}
+
 /** "[servidor] conectados: ana#1, bob#2" -> ["ana#1", "bob#2"]; null se for outra linha. */
 export function lerListaConectados(linha: string): string[] | null {
   const prefixo = "[servidor] conectados:";

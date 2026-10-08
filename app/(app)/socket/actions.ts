@@ -6,6 +6,7 @@ import { gerarMovimentoXml } from "@/lib/exportacao-xml";
 import { importarMovimento, type ResultadoImportacao } from "@/lib/importacao";
 import { MAX_BYTES_XML } from "@/lib/xml/validador";
 import { enviarArquivo } from "@/lib/socket/cliente";
+import { normalizarDestino } from "@/lib/socket/protocolo";
 import { lerConectados, type EstadoConectados } from "@/lib/socket/estado";
 import { descartarRecebido, lerRecebido } from "@/lib/socket/caixa-entrada";
 
@@ -25,8 +26,8 @@ export async function enviarSocketAction(
   const usuario = await getUsuarioAtual();
   if (!usuario) return { ok: false, erro: SESSAO_EXPIRADA };
 
-  // "#ana", "ana" e "3" valem; vazio manda para todos os conectados.
-  const destino = String(formData.get("destino") ?? "").trim().replace(/^#/, "") || null;
+  // "#ana", "ana", "3" e "ana#3" valem; vazio manda para todos os conectados.
+  const destino = normalizarDestino(String(formData.get("destino") ?? ""));
   if (destino && /\s/.test(destino)) {
     return { ok: false, erro: "O destino é um nome ou id do servidor, sem espaços." };
   }

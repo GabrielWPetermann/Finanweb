@@ -2,6 +2,7 @@
 
 import { getUsuarioAtual } from "@/lib/auth";
 import { enfileirarMensagem } from "@/lib/socket/chat";
+import { normalizarDestino } from "@/lib/socket/protocolo";
 
 export interface ResultadoMensagem {
   ok: boolean;
@@ -20,8 +21,8 @@ export async function enviarMensagemAction(texto: string, destino: string): Prom
     return { ok: false, erro: `Mensagem longa demais (máximo ${MAX_CARACTERES} caracteres).` };
   }
 
-  // "#ana", "ana" e "3" valem; vazio manda para todos os conectados.
-  const alvo = destino.trim().replace(/^#/, "") || null;
+  // "#ana", "ana", "3" e "ana#3" valem; vazio manda para todos os conectados.
+  const alvo = normalizarDestino(destino);
   if (alvo && /\s/.test(alvo)) {
     return { ok: false, erro: "O destino é um nome ou id do servidor, sem espaços." };
   }
