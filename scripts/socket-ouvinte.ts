@@ -29,9 +29,16 @@ const ESPERA_NOME_MS = 10_000;
 const BATIMENTO_MS = Number(process.env.SOCKET_BATIMENTO_MS || 60_000);
 const FILA_MS = 1500;
 
+// O pedaco de tamanho 0 que marca o fim do arquivo e convencao do nosso
+// cliente; o de outro grupo pode nao mandar. Sem pedaco novo por esse tempo,
+// o arquivo e processado com o que chegou, em vez de ficar esperando para
+// sempre sem ninguem saber.
+const ESPERA_FIM_ARQUIVO_MS = Number(process.env.SOCKET_ESPERA_FIM_MS || 10_000);
+
 interface ArquivoEmAndamento {
   partes: Buffer[];
   tamanho: number;
+  timer?: NodeJS.Timeout;
 }
 
 function log(texto: string) {
@@ -107,22 +114,39 @@ function conectar() {
     responder(remetente, `"${nomeArquivo}" recebido (${tipo}), aguardando aprovação no Finanweb.`);
   }
 
-  function aoReceberPedaco({ remetente, nomeArquivo, dados }: PedacoRecebido) {
-    const chave = `${remetente}/${nomeArquivo}`;
-    const arquivo = emAndamento.get(chave) ?? { partes: [], tamanho: 0 };
-    emAndamento.set(chave, arquivo);
-
-    if (dados.length > 0) {
-      arquivo.tamanho += dados.length;
-      // Passou do limite: para de acumular, so conta, e recusa no fim.
-      if (arquivo.tamanho <= MAX_BYTES_XML) arquivo.partes.push(dados);
-      return;
-    }
-
+  function finalizarArquivo(chave: string, remetente: string, nomeArquivo: string) {
+    const arquivo = emAndamento.get(chave);
+    if (!arquivo) return;
+    clearTimeout(arquivo.timer);
     emAndamento.delete(chave);
     processarArquivo(remetente, nomeArquivo, arquivo).catch((erro) =>
       log(`erro ao processar "${nomeArquivo}": ${String(erro)}`)
     );
+  }
+
+  function aoReceberPedaco({ remetente, nomeArquivo, dados }: PedacoRecebido) {
+    const chave = `${remetente}/${nomeArquivo}`;
+    let arquivo = emAndamento.get(chave);
+    if (!arquivo) {
+      arquivo = { partes: [], tamanho: 0 };
+      emAndamento.set(chave, arquivo);
+      log(`recebendo "${nomeArquivo}" de ${remetente}...`);
+    }
+
+    if (dados.length === 0) {
+      finalizarArquivo(chave, remetente, nomeArquivo);
+      return;
+    }
+
+    arquivo.tamanho += dados.length;
+    // Passou do limite: para de acumular, so conta, e recusa no fim.
+    if (arquivo.tamanho <= MAX_BYTES_XML) arquivo.partes.push(dados);
+
+    clearTimeout(arquivo.timer);
+    arquivo.timer = setTimeout(() => {
+      log(`"${nomeArquivo}" de ${remetente}: sem o pedaço final, processando os ${arquivo.tamanho} bytes recebidos`);
+      finalizarArquivo(chave, remetente, nomeArquivo);
+    }, ESPERA_FIM_ARQUIVO_MS);
   }
 
   function aoReceberTexto(linha: string) {
