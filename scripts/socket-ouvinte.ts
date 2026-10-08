@@ -1,22 +1,33 @@
 // Ouvinte de socket do Finanweb: fica conectado ao servidor de chat da
-// disciplina e guarda os XMLs de Entrada/Saida que chegam, para alguem
-// aprovar a importacao na tela /socket.
+// disciplina e
+//   - guarda os XMLs de Entrada/Saida que chegam, para alguem aprovar a
+//     importacao na tela /socket (responde ao remetente se aceitou);
+//   - grava as mensagens do chat no banco e manda as que foram escritas na
+//     tela /chat, que ficam numa fila no banco.
 //
 // Roda fora da Vercel, porque funcao serverless nao fica conectada esperando:
 //   npm run socket
 //
-// Precisa do BLOB_READ_WRITE_TOKEN do .env (e la que a caixa de entrada fica).
-// Responde ao remetente no proprio chat, em privado, se o arquivo foi aceito.
+// Precisa do .env: BLOB_READ_WRITE_TOKEN (caixa de entrada) e DATABASE_URL (chat).
 
 import net from "node:net";
 import { MAX_BYTES_XML, SCHEMA_POR_TIPO, validarContraXsd } from "@/lib/xml/validador";
 import { SOCKET_HOST, SOCKET_NOME, SOCKET_PORTA } from "@/lib/socket/config";
-import { LeitorProtocolo, linhaDeTexto, type PedacoRecebido } from "@/lib/socket/protocolo";
+import { LeitorProtocolo, lerListaConectados, linhaDeTexto, type PedacoRecebido } from "@/lib/socket/protocolo";
+import { gravarConectados } from "@/lib/socket/estado";
 import { detectarTipoMovimento, guardarRecebido } from "@/lib/socket/caixa-entrada";
+import {
+  linhaParaEnviar,
+  marcarEnviada,
+  pegarFila,
+  registrarEnviadaPeloOuvinte,
+  registrarRecebida,
+} from "@/lib/socket/chat";
 
 const ESPERA_RECONEXAO_MS = 5000;
 const ESPERA_NOME_MS = 10_000;
 const BATIMENTO_MS = Number(process.env.SOCKET_BATIMENTO_MS || 60_000);
+const FILA_MS = 1500;
 
 interface ArquivoEmAndamento {
   partes: Buffer[];
@@ -27,15 +38,30 @@ function log(texto: string) {
   console.log(`${new Date().toLocaleTimeString("pt-BR")}  ${texto}`);
 }
 
+// Gravacoes no banco uma de cada vez, na ordem em que as linhas chegaram. A
+// primeira consulta abre a conexao e demora mais: sem fila, uma lista de
+// conectados velha terminava de gravar depois da nova e a sobrescrevia, e
+// mensagens do chat podiam ficar fora de ordem.
+let gravacoes: Promise<void> = Promise.resolve();
+function gravarEmOrdem(descricao: string, gravar: () => Promise<void>) {
+  gravacoes = gravacoes.then(gravar).catch((erro) => log(`erro ao gravar ${descricao}: ${String(erro)}`));
+}
+
 function conectar() {
   const socket = net.connect({ host: SOCKET_HOST, port: SOCKET_PORTA });
   // Chave "remetente/nome": dois remetentes podem mandar arquivos ao mesmo
   // tempo, e os pedacos chegam intercalados.
   const emAndamento = new Map<string, ArquivoEmAndamento>();
 
+  // So depois de o servidor confirmar o nome a fila do chat e enviada:
+  // antes disso a mensagem sairia como "clienteN".
+  let nomeConfirmado = false;
+
   function responder(remetente: string, texto: string) {
     const id = remetente.slice(remetente.lastIndexOf("#") + 1);
-    if (!socket.destroyed) socket.write(`#${id} ${linhaDeTexto(texto)}\n`);
+    if (socket.destroyed) return;
+    socket.write(`#${id} ${linhaDeTexto(texto)}\n`);
+    gravarEmOrdem("no chat", () => registrarEnviadaPeloOuvinte(remetente, texto));
   }
 
   async function processarArquivo(remetente: string, nomeArquivo: string, arquivo: ArquivoEmAndamento) {
@@ -100,8 +126,13 @@ function conectar() {
   }
 
   function aoReceberTexto(linha: string) {
-    // Resposta do batimento: so prova que a conexao esta viva, nao vai pro log.
-    if (linha.startsWith("[servidor] conectados:")) return;
+    // Resposta do /lista (batimento ou mudanca na sala): vira o estado que as
+    // telas mostram. Nao vai pro log nem pro chat.
+    const conectados = lerListaConectados(linha);
+    if (conectados) {
+      gravarEmOrdem("conectados", () => gravarConectados(conectados));
+      return;
+    }
 
     // Reconectou antes de o servidor notar que a conexao antiga caiu: o nome
     // ainda esta preso nela. Sem insistir, o ouvinte ficaria como "clienteN"
@@ -112,7 +143,38 @@ function conectar() {
       return;
     }
     log(linha);
+
+    // As boas-vindas e a troca de nome falam desta conexao, nao da conversa.
+    if (linha.startsWith("[servidor] bem-vindo")) return;
+    if (linha.startsWith(`[servidor] agora você é ${SOCKET_NOME}#`)) {
+      nomeConfirmado = true;
+      socket.write("/lista\n");
+      return;
+    }
+    // Alguem entrou, saiu ou trocou de nome: atualiza a lista na hora, sem
+    // esperar o proximo batimento.
+    if (/^\[servidor\] .+ (entrou|saiu|agora é \S+)$/.test(linha)) socket.write("/lista\n");
+
+    gravarEmOrdem("no chat", () => registrarRecebida(linha));
   }
+
+  // Fila do chat: mensagens escritas na tela /chat esperando para sair.
+  let enviandoFila = false;
+  const fila = setInterval(async () => {
+    if (!nomeConfirmado || enviandoFila || socket.destroyed) return;
+    enviandoFila = true;
+    try {
+      for (const mensagem of await pegarFila()) {
+        socket.write(linhaParaEnviar(mensagem));
+        await marcarEnviada(mensagem.id);
+        log(`chat: [${mensagem.autor}] -> ${mensagem.destino ?? "todos"}: ${mensagem.texto}`);
+      }
+    } catch (erro) {
+      log(`erro na fila do chat: ${String(erro)}`);
+    } finally {
+      enviandoFila = false;
+    }
+  }, FILA_MS);
 
   const leitor = new LeitorProtocolo(aoReceberTexto, aoReceberPedaco);
 
@@ -140,6 +202,7 @@ function conectar() {
   socket.on("error", (erro: NodeJS.ErrnoException) => log(`erro de conexão: ${erro.code ?? erro.message}`));
   socket.on("close", () => {
     clearInterval(batimento);
+    clearInterval(fila);
     log(`desconectado, tentando de novo em ${ESPERA_RECONEXAO_MS / 1000}s`);
     setTimeout(conectar, ESPERA_RECONEXAO_MS);
   });

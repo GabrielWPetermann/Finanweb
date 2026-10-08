@@ -218,8 +218,34 @@ repositório e o `BLOB_READ_WRITE_TOKEN`:
 npm run socket
 ```
 
-O botão **Ver quem está conectado** em `/socket` mostra se o ouvinte está no
-ar.
+Quem está conectado ao servidor também vem do ouvinte: ele grava no banco
+(tabela `EstadoOuvinte`) a resposta do `/lista` a cada batimento e sempre que
+alguém entra, sai ou troca de nome. As telas leem dali em vez de perguntar ao
+servidor — cada conexão nova o servidor anuncia para a turma inteira
+("entrou", "saiu"), então consultar direto virava ruído no chat de todo mundo.
+Atualização com mais de 2,5 min = ouvinte fora do ar.
+
+### Chat
+
+`/chat` é um painel da conversa do servidor de socket. A tela não fica
+conectada (Vercel), então o banco faz a ponte, tabela `MensagemChat`:
+
+- **Recebidas**: o ouvinte grava cada linha que chega — mensagem pública,
+  privada para o `finanweb` ou aviso do servidor (entrou, saiu...). O painel
+  busca as últimas 150 a cada 2 s.
+- **Enviadas**: o painel grava a mensagem como pendente e o ouvinte manda pela
+  conexão que já está aberta, a cada 1,5 s. Para a turma ela sai como
+  `finanweb#id: [usuario] texto` — o usuário do Finanweb vai na frente porque
+  todo mundo escreve pela mesma conexão, e isso também impede que um texto
+  começando com `/` vire comando no servidor. Destino vazio = todos; senão
+  nome ou id, em privado.
+
+Com o ouvinte parado nada chega e o que for escrito fica na fila (marcado
+"na fila" no painel), saindo assim que ele conectar. As gravações do ouvinte
+no banco são feitas em fila, na ordem em que as linhas chegaram.
+
+Custo: com o ouvinte rodando, o banco recebe uma consulta a cada 1,5 s (a
+fila), o que mantém o compute do Neon acordado enquanto ele estiver no ar.
 
 ### Cadastros (clientes e fornecedores)
 
@@ -274,6 +300,7 @@ simples) ou cadastrar uma nova manualmente.
 | `/` | Dashboard: saldo geral, top clientes, top fornecedores | autenticado |
 | `/integrar` | Upload de CSV (Entrada, Saída, Clientes ou Fornecedores) | autenticado |
 | `/socket` | Envia XML pelo servidor de chat e aprova os XMLs recebidos pelo ouvinte | autenticado |
+| `/chat` | Conversa do servidor de socket: lê e manda mensagens (via ouvinte) | autenticado |
 | `/recebimentos` | Recebimentos (de CSV ou lançados na mão): listar, filtrar, criar, editar; excluir é ADMIN | autenticado |
 | `/pagamentos` | Pagamentos (de CSV ou lançados na mão): listar, filtrar, criar, editar; excluir é ADMIN | autenticado |
 | `/historico` | Log de arquivos importados, com link de download do CSV original | autenticado |

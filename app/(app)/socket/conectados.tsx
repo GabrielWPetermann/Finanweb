@@ -1,35 +1,45 @@
 "use client";
 
-import { useActionState } from "react";
-import { conectadosAction, type ResultadoConectados } from "./actions";
+import { useState, useTransition } from "react";
+import type { EstadoConectados } from "@/lib/socket/estado";
+import { conectadosAction } from "./actions";
 
-const estadoInicial: ResultadoConectados = { ok: false };
+/** Situacao da conexao com o servidor e quem mais esta conectado. */
+export function StatusConectados({ estado, nomeOuvinte }: { estado: EstadoConectados; nomeOuvinte: string }) {
+  if (!estado.ouvinteOnline) {
+    return (
+      <p className="erro">
+        Desconectado do servidor: mensagens e arquivos não estão sendo recebidos.{" "}
+        <a href="/documentacao#socket">Saiba mais</a>
+      </p>
+    );
+  }
 
-export function Conectados({ nomeOuvinte }: { nomeOuvinte: string }) {
-  const [resultado, formAction, pending] = useActionState(conectadosAction, estadoInicial);
-  const ouvinteOnline = resultado.conectados?.some((rotulo) =>
-    rotulo.toLowerCase().startsWith(`${nomeOuvinte.toLowerCase()}#`)
+  const outros = estado.conectados.filter((rotulo) => !rotulo.toLowerCase().startsWith(`${nomeOuvinte.toLowerCase()}#`));
+  return (
+    <p className="texto-suave">
+      Conectado ao servidor. Na sala: {outros.length > 0 ? outros.join(", ") : "ninguém"}.
+    </p>
   );
+}
+
+export function Conectados({ inicial, nomeOuvinte }: { inicial: EstadoConectados; nomeOuvinte: string }) {
+  const [estado, setEstado] = useState(inicial);
+  const [pending, startTransition] = useTransition();
+
+  function atualizar() {
+    startTransition(async () => {
+      const novo = await conectadosAction();
+      if (novo) setEstado(novo);
+    });
+  }
 
   return (
-    <form action={formAction}>
-      <button type="submit" disabled={pending}>
-        {pending ? "Consultando..." : "Ver quem está conectado"}
+    <>
+      <StatusConectados estado={estado} nomeOuvinte={nomeOuvinte} />
+      <button type="button" onClick={atualizar} disabled={pending}>
+        {pending ? "Atualizando..." : "Atualizar"}
       </button>
-
-      {resultado.erro && <p className="erro">{resultado.erro}</p>}
-      {resultado.ok && (
-        <>
-          <p className={ouvinteOnline ? "sucesso" : "erro"}>
-            {ouvinteOnline
-              ? `Ouvinte "${nomeOuvinte}" conectado: os XMLs enviados para ele chegam na lista abaixo.`
-              : `Ouvinte "${nomeOuvinte}" fora do ar: rode npm run socket para receber arquivos.`}
-          </p>
-          <p className="texto-suave">
-            Conectados: {resultado.conectados?.length ? resultado.conectados.join(", ") : "ninguém além desta consulta"}
-          </p>
-        </>
-      )}
-    </form>
+    </>
   );
 }

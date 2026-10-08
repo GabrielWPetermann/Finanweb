@@ -5,7 +5,8 @@ import { getUsuarioAtual } from "@/lib/auth";
 import { gerarMovimentoXml } from "@/lib/exportacao-xml";
 import { importarMovimento, type ResultadoImportacao } from "@/lib/importacao";
 import { MAX_BYTES_XML } from "@/lib/xml/validador";
-import { enviarArquivo, listarConectados } from "@/lib/socket/cliente";
+import { enviarArquivo } from "@/lib/socket/cliente";
+import { lerConectados, type EstadoConectados } from "@/lib/socket/estado";
 import { descartarRecebido, lerRecebido } from "@/lib/socket/caixa-entrada";
 
 export interface ResultadoEnvio {
@@ -13,12 +14,6 @@ export interface ResultadoEnvio {
   erro?: string;
   nomeArquivo?: string;
   destinatarios?: string[];
-}
-
-export interface ResultadoConectados {
-  ok: boolean;
-  erro?: string;
-  conectados?: string[];
 }
 
 const SESSAO_EXPIRADA = "Sessão expirada. Faça login novamente.";
@@ -81,13 +76,12 @@ export async function enviarSocketAction(
   return { ok: true, nomeArquivo, destinatarios: envio.destinatarios };
 }
 
-export async function conectadosAction(): Promise<ResultadoConectados> {
+// Le o que o ouvinte gravou, sem abrir conexao: perguntar direto ao servidor
+// faria ele anunciar "entrou/saiu" para a turma inteira a cada consulta.
+export async function conectadosAction(): Promise<EstadoConectados | null> {
   const usuario = await getUsuarioAtual();
-  if (!usuario) return { ok: false, erro: SESSAO_EXPIRADA };
-
-  const resultado = await listarConectados();
-  if (!resultado.ok) return { ok: false, erro: resultado.erro };
-  return { ok: true, conectados: resultado.conectados };
+  if (!usuario) return null;
+  return lerConectados();
 }
 
 export async function importarRecebidoAction(

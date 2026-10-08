@@ -29,7 +29,7 @@ export function EnviarForm() {
             checked={origem === "periodo"}
             onChange={() => setOrigem("periodo")}
           />{" "}
-          Movimento do sistema (mesmo XML de Relatórios)
+          Movimento do período
         </label>
         <label>
           <input
@@ -39,7 +39,7 @@ export function EnviarForm() {
             checked={origem === "arquivo"}
             onChange={() => setOrigem("arquivo")}
           />{" "}
-          Arquivo XML do computador
+          Arquivo XML
         </label>
       </div>
 
@@ -76,9 +76,9 @@ export function EnviarForm() {
           name="destino"
           value={destino}
           onChange={(e) => setDestino(e.target.value)}
-          placeholder="vazio = todos os conectados"
+          placeholder="todos"
         />
-        <small>Nome ou id de quem está conectado ao servidor (ex.: ana ou 3).</small>
+        <small>Nome ou id. Vazio envia para todos.</small>
       </div>
 
       <button type="submit" disabled={pending}>

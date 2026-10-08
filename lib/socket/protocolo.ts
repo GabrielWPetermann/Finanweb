@@ -82,6 +82,17 @@ export function montarPedacos(nomeArquivo: string, conteudo: Buffer, destino: st
   }
 }
 
+/** "[servidor] conectados: ana#1, bob#2" -> ["ana#1", "bob#2"]; null se for outra linha. */
+export function lerListaConectados(linha: string): string[] | null {
+  const prefixo = "[servidor] conectados:";
+  if (!linha.startsWith(prefixo)) return null;
+  return linha
+    .slice(prefixo.length)
+    .split(",")
+    .map((rotulo) => rotulo.trim())
+    .filter(Boolean);
+}
+
 /** Texto de uma unica linha, pronto para mandar como mensagem. */
 export function linhaDeTexto(texto: string): string {
   return texto.replace(/[\r\n]+/g, " ").trim();

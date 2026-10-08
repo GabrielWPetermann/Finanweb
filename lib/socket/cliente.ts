@@ -1,10 +1,11 @@
 // Conexao curta com o servidor de chat: abre, conversa e fecha. E o que cabe
 // numa funcao serverless (Vercel), que nao pode ficar conectada esperando --
-// receber arquivos fica com o ouvinte (scripts/socket-ouvinte.ts).
+// receber arquivos e saber quem esta conectado fica com o ouvinte
+// (scripts/socket-ouvinte.ts). So o envio de arquivo ainda abre conexao aqui.
 
 import net from "node:net";
 import { SOCKET_HOST, SOCKET_NOME_ENVIO, SOCKET_PORTA } from "@/lib/socket/config";
-import { LeitorProtocolo, montarPedacos } from "@/lib/socket/protocolo";
+import { LeitorProtocolo, lerListaConectados, montarPedacos } from "@/lib/socket/protocolo";
 
 const TIMEOUT_CONEXAO_MS = 5000;
 const TIMEOUT_RESPOSTA_MS = 3000;
@@ -113,12 +114,10 @@ async function iniciarSessao(): Promise<Sessao> {
   await conexao.esperarLinha((l) => l.startsWith("[servidor] agora você é") || l.includes("nome"));
 
   await conexao.escrever("/lista\n");
-  const lista = await conexao.esperarLinha((l) => l.startsWith("[servidor] conectados:"));
-  const conectados = (lista ?? "")
-    .replace("[servidor] conectados:", "")
-    .split(",")
-    .map((rotulo) => rotulo.trim())
-    .filter((rotulo) => rotulo && idDoRotulo(rotulo) !== meuId);
+  const lista = await conexao.esperarLinha((l) => lerListaConectados(l) !== null);
+  const conectados = (lista ? (lerListaConectados(lista) ?? []) : []).filter(
+    (rotulo) => idDoRotulo(rotulo) !== meuId
+  );
 
   return { conexao, meuId, conectados };
 }
@@ -126,17 +125,6 @@ async function iniciarSessao(): Promise<Sessao> {
 function mensagemFalhaConexao(erro: unknown): string {
   const motivo = erro instanceof Error ? erro.message : String(erro);
   return `Não foi possível conectar ao servidor ${SOCKET_HOST}:${SOCKET_PORTA} (${motivo}). Confira se ele está no ar.`;
-}
-
-export async function listarConectados(): Promise<ResultadoSocket<{ conectados: string[] }>> {
-  let sessao: Sessao;
-  try {
-    sessao = await iniciarSessao();
-  } catch (erro) {
-    return { ok: false, erro: mensagemFalhaConexao(erro) };
-  }
-  await sessao.conexao.fechar();
-  return { ok: true, conectados: sessao.conectados };
 }
 
 /**

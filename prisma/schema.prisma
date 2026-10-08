@@ -22,6 +22,11 @@ enum TipoParceiro {
   FORNECEDOR
 }
 
+enum DirecaoMensagem {
+  RECEBIDA
+  ENVIADA
+}
+
 model Usuario {
   id          String       @id @default(cuid())
   username    String       @unique
@@ -122,4 +127,37 @@ model DespesaAgrupada {
   @@index([fornecedorId])
   @@index([dataPagamento])
   @@index([categoriaId])
+}
+
+// Mensagens do chat do servidor de socket da disciplina (tela /chat).
+// O ouvinte (npm run socket) grava o que chega e manda o que esta na fila:
+// a funcao serverless nao fica conectada, entao o banco faz a ponte.
+model MensagemChat {
+  id        String          @id @default(cuid())
+  direcao   DirecaoMensagem
+  // RECEBIDA: rotulo de quem mandou no chat ("ana#3", "servidor").
+  // ENVIADA: username de quem escreveu no Finanweb (ou "ouvinte").
+  autor     String
+  // ENVIADA: nome ou id do destinatario; null = todos os conectados.
+  destino   String?
+  privada   Boolean         @default(false)
+  // Linha "[servidor] ..." (entrou, saiu, destino nao encontrado...).
+  aviso     Boolean         @default(false)
+  texto     String
+  criadoEm  DateTime        @default(now())
+  // So ENVIADA: quando o ouvinte mandou pelo socket. null = na fila.
+  enviadaEm DateTime?
+
+  @@index([criadoEm])
+  @@index([direcao, enviadaEm])
+}
+
+// Estado do ouvinte, numa linha so (id "ouvinte"): quem esta conectado ao
+// servidor de chat, segundo o ultimo /lista. As telas leem daqui em vez de
+// abrir uma conexao so para perguntar, o que espalharia "entrou/saiu" no
+// chat da turma. atualizadoEm velho = ouvinte fora do ar.
+model EstadoOuvinte {
+  id           String   @id
+  conectados   String[]
+  atualizadoEm DateTime @updatedAt
 }
