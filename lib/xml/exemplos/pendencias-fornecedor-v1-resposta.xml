@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Financeiro -> Compras: resposta com o mesmo id da consulta. Schema: pendencias-fornecedor-v1.xsd -->
+<respostaPendencias xmlns="urn:finanweb:pendencias-fornecedor:1.0" versao="1.0" id="compras-000045">
+  <dataConsulta>2026-10-21</dataConsulta>
+  <pendencias>
+    <pendencia referencia="C-2026-000297">
+      <fornecedor documento="11444777000161">Distribuidora Central LTDA</fornecedor>
+      <categoria>Mercadorias</categoria>
+      <valor>1200.00</valor>
+      <vencimento>2026-10-15</vencimento>
+    </pendencia>
+    <pendencia referencia="C-2026-000310">
+      <fornecedor documento="11444777000161">Distribuidora Central LTDA</fornecedor>
+      <categoria>Mercadorias</categoria>
+      <valor>2350.00</valor>
+      <vencimento>2026-11-04</vencimento>
+    </pendencia>
+  </pendencias>
+  <totalizador>
+    <qtdPendencias>2</qtdPendencias>
+    <valorTotal>3550.00</valorTotal>
+  </totalizador>
+</respostaPendencias>

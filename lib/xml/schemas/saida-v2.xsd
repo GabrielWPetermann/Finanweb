@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Schema do movimento de Saida, versao 2.0: compras que o setor de Compras
+  envia ao Financeiro para virarem contas a pagar.
+
+  Mesma espinha dorsal do saida-v1.xsd, que continua valendo, com as mesmas
+  mudancas da entrada-v2.xsd: sai o tipoDocumento do cabecalho, entram a
+  origem (cabecalho) e a referencia e o vencimento (despesa). Os tipos simples
+  sao repetidos aqui, como na v1, para cada schema ser um arquivo unico.
+
+  A dataPagamento da v1 vira dataEmissao: quem gera a despesa (Compras) nao
+  sabe quando ela vai ser paga, so quando foi feita e quando vence.
+
+  Na v2 o status fala do pagamento:
+    PENDENTE    ainda nao pago (conta a pagar em aberto)
+    CONFIRMADO  ja pago; o vencimento e a data em que foi pago
+    CANCELADO   compra cancelada; o Financeiro ignora o registro
+
+  Regras de validacao (mesma numeracao do entrada-v2.xsd):
+    R1  documento do fornecedor: so digitos, 11 (CPF) ou 14 (CNPJ).
+    R2  status: enumeracao fechada CONFIRMADO | PENDENTE | CANCELADO.
+    R3  valores monetarios: decimal de ate 14 digitos, 2 casas, nao negativo.
+    R4  datas: xs:date (AAAA-MM-DD).
+    R6  estrutura: cabecalho -> despesas -> totalizador, nessa ordem; ao menos
+        uma despesa; textos obrigatorios nao vazios e sem espaco nas pontas.
+    R7  origem: letras minusculas, digitos e hifen, comecando por letra.
+    R8  referencia: obrigatoria, sem espacos, ate 60 caracteres.
+    R9  referencia unica dentro do arquivo.
+
+  R5 (percentual) nao se aplica: Saida nao tem desconto.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:s="urn:finanweb:saida:2.0"
+           targetNamespace="urn:finanweb:saida:2.0"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <!-- ===================== Tipos simples ===================== -->
+
+  <!-- R6: texto obrigatorio. Nao pode ser vazio nem ter espaco no inicio/fim. -->
+  <xs:simpleType name="textoObrigatorio">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="120"/>
+      <xs:pattern value="\S(.*\S)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R1: CPF (11 digitos) ou CNPJ (14 digitos), so numeros. -->
+  <xs:simpleType name="documentoParceiro">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{11}|\d{14}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R1: CNPJ da empresa emissora, 14 digitos. -->
+  <xs:simpleType name="cnpj">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{14}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R7: nome do sistema de origem, o mesmo do servidor da turma. -->
+  <xs:simpleType name="identificadorSistema">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[a-z][a-z0-9\-]{1,29}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R8: identificador do registro no sistema de origem. -->
+  <xs:simpleType name="referencia">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9][A-Za-z0-9._/\-]{0,59}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R2: status do pagamento (ver significado no topo). -->
+  <xs:simpleType name="statusRegistro">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="CONFIRMADO"/>
+      <xs:enumeration value="PENDENTE"/>
+      <xs:enumeration value="CANCELADO"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R3: valor monetario = Decimal(14,2), nao negativo. -->
+  <xs:simpleType name="valorMonetario">
+    <xs:restriction base="xs:decimal">
+      <xs:totalDigits value="14"/>
+      <xs:fractionDigits value="2"/>
+      <xs:minInclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ===================== Tipos complexos ===================== -->
+
+  <xs:complexType name="cabecalho">
+    <xs:sequence>
+      <xs:element name="empresa" type="s:textoObrigatorio"/>
+      <xs:element name="cnpj" type="s:cnpj"/>
+      <xs:element name="origem" type="s:identificadorSistema"/>  <!-- R7 -->
+      <xs:element name="dataArquivo" type="xs:date"/>            <!-- R4 -->
+      <xs:element name="usuario" type="s:textoObrigatorio"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Nome do fornecedor no conteudo, documento (R1) como atributo. -->
+  <xs:complexType name="fornecedor">
+    <xs:simpleContent>
+      <xs:extension base="s:textoObrigatorio">
+        <xs:attribute name="documento" type="s:documentoParceiro" use="required"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="despesa">
+    <xs:sequence>
+      <xs:element name="fornecedor" type="s:fornecedor"/>
+      <xs:element name="categoria" type="s:textoObrigatorio"/>
+      <xs:element name="valor" type="s:valorMonetario"/>       <!-- R3 -->
+      <xs:element name="formaPagamento" type="s:textoObrigatorio"/>
+      <xs:element name="dataEmissao" type="xs:date"/>          <!-- R4 -->
+      <xs:element name="vencimento" type="xs:date"/>           <!-- R4 -->
+    </xs:sequence>
+    <xs:attribute name="referencia" type="s:referencia" use="required"/>  <!-- R8 -->
+    <xs:attribute name="status" type="s:statusRegistro" use="required"/>  <!-- R2 -->
+  </xs:complexType>
+
+  <!-- R6: pelo menos uma despesa, sem limite superior. -->
+  <xs:complexType name="despesas">
+    <xs:sequence>
+      <xs:element name="despesa" type="s:despesa" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="totalizador">
+    <xs:sequence>
+      <xs:element name="qtdRegistros" type="xs:positiveInteger"/>
+      <xs:element name="valorTotalGeral" type="s:valorMonetario"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ===================== Elemento raiz ===================== -->
+
+  <xs:element name="movimento">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="cabecalho" type="s:cabecalho"/>
+        <xs:element name="despesas" type="s:despesas"/>
+        <xs:element name="totalizador" type="s:totalizador"/>
+      </xs:sequence>
+      <xs:attribute name="versao" type="xs:string" use="required" fixed="2.0"/>
+      <xs:attribute name="tipo" type="xs:string" use="required" fixed="SAIDA"/>
+    </xs:complexType>
+
+    <!-- R9: a mesma compra nao aparece duas vezes no arquivo. -->
+    <xs:unique name="referenciaUnica">
+      <xs:selector xpath="s:despesas/s:despesa"/>
+      <xs:field xpath="@referencia"/>
+    </xs:unique>
+  </xs:element>
+
+</xs:schema>

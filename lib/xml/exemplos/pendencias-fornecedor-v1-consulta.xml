@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Compras -> Financeiro: o que está em aberto com o fornecedor? Sem <documento>, todos.
+     Schema: pendencias-fornecedor-v1.xsd -->
+<consultaPendencias xmlns="urn:finanweb:pendencias-fornecedor:1.0" versao="1.0" id="compras-000045">
+  <origem>compras</origem>
+  <documento>11444777000161</documento>
+</consultaPendencias>

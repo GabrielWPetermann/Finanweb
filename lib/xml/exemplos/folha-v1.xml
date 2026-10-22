@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- RH -> Financeiro: folha de pagamento da competência. Schema: folha-v1.xsd -->
+<folha xmlns="urn:finanweb:folha:1.0" versao="1.0" referencia="FOLHA-2026-10">
+  <cabecalho>
+    <empresa>Empresa LTDA</empresa>
+    <cnpj>12345678000199</cnpj>
+    <origem>rh</origem>
+    <dataArquivo>2026-10-31</dataArquivo>
+    <usuario>paula.rh</usuario>
+  </cabecalho>
+  <competencia>2026-10</competencia>
+  <dataPagamento>2026-11-05</dataPagamento>
+  <funcionarios>
+    <funcionario cpf="98765432100" matricula="F-0042">
+      <nome>Carlos Lima</nome>
+      <salarioBruto>3500.00</salarioBruto>
+      <descontos>412.35</descontos>
+      <salarioLiquido>3087.65</salarioLiquido>
+    </funcionario>
+    <funcionario cpf="52998224725" matricula="F-0057">
+      <nome>Beatriz Conceição</nome>
+      <salarioBruto>5200.00</salarioBruto>
+      <descontos>917.60</descontos>
+      <salarioLiquido>4282.40</salarioLiquido>
+    </funcionario>
+  </funcionarios>
+  <totalizador>
+    <qtdFuncionarios>2</qtdFuncionarios>
+    <valorLiquidoTotal>7370.05</valorLiquidoTotal>
+  </totalizador>
+</folha>

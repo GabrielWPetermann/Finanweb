@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Schema do movimento de Entrada, versao 2.0: vendas que o setor de Vendas
+  envia ao Financeiro para virarem contas a receber.
+
+  Mesma espinha dorsal do entrada-v1.xsd, que continua valendo. A v2 tira do
+  cabecalho o tipoDocumento (so informativo no layout do Finanweb) e
+  acrescenta o que a integracao entre setores precisa:
+
+    origem      (cabecalho) sistema que gerou o arquivo, com o mesmo nome que
+                ele usa no servidor da turma ("vendas").
+    referencia  (pedido) identificador da venda no sistema de origem. O par
+                origem + referencia identifica o lancamento: a mesma venda
+                enviada duas vezes so e lancada uma.
+    vencimento  (pedido) data em que o valor deve ser recebido; a vista, a
+                propria data do pedido. E o que permite dizer se o cliente
+                esta em atraso (ver inadimplencia-v1.xsd).
+
+  Na v2 o status fala do recebimento, nao do pedido:
+    PENDENTE    valor ainda nao recebido (conta a receber em aberto)
+    CONFIRMADO  valor ja recebido; o vencimento e a data em que foi recebido
+    CANCELADO   venda cancelada; o Financeiro ignora o registro
+
+  Regras de validacao (numeracao do entrada-v1.xsd; R7 a R9 sao novas):
+    R1  documento do cliente: so digitos, 11 (CPF) ou 14 (CNPJ).
+        cnpj do cabecalho: 14 digitos.
+    R2  status: enumeracao fechada CONFIRMADO | PENDENTE | CANCELADO.
+    R3  valores monetarios: decimal de ate 14 digitos, 2 casas, nao negativo.
+    R4  datas: xs:date (AAAA-MM-DD).
+    R5  percentual de desconto: decimal de 0 a 100, com ate 2 casas.
+    R6  estrutura: cabecalho -> pedidos -> totalizador, nessa ordem; ao menos
+        um pedido; textos obrigatorios nao vazios e sem espaco nas pontas.
+    R7  origem: letras minusculas, digitos e hifen, comecando por letra.
+    R8  referencia: obrigatoria, sem espacos, ate 60 caracteres.
+    R9  referencia unica dentro do arquivo.
+
+  Ficam para o codigo, como na v1: contas entre campos, vencimento anterior
+  ao pedido e referencia que ja veio em arquivo anterior.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:e="urn:finanweb:entrada:2.0"
+           targetNamespace="urn:finanweb:entrada:2.0"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <!-- ===================== Tipos simples ===================== -->
+
+  <!-- R6: texto obrigatorio. Nao pode ser vazio nem ter espaco no inicio/fim. -->
+  <xs:simpleType name="textoObrigatorio">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="120"/>
+      <xs:pattern value="\S(.*\S)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R1: CPF (11 digitos) ou CNPJ (14 digitos), so numeros. -->
+  <xs:simpleType name="documentoParceiro">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{11}|\d{14}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R1: CNPJ da empresa emissora, 14 digitos. -->
+  <xs:simpleType name="cnpj">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{14}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R7: nome do sistema de origem, o mesmo do servidor da turma. -->
+  <xs:simpleType name="identificadorSistema">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[a-z][a-z0-9\-]{1,29}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R8: identificador do registro no sistema de origem. -->
+  <xs:simpleType name="referencia">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9][A-Za-z0-9._/\-]{0,59}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R2: status do recebimento (ver significado no topo). -->
+  <xs:simpleType name="statusRegistro">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="CONFIRMADO"/>
+      <xs:enumeration value="PENDENTE"/>
+      <xs:enumeration value="CANCELADO"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R3: valor monetario = Decimal(14,2), nao negativo. -->
+  <xs:simpleType name="valorMonetario">
+    <xs:restriction base="xs:decimal">
+      <xs:totalDigits value="14"/>
+      <xs:fractionDigits value="2"/>
+      <xs:minInclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R5: percentual de desconto entre 0 e 100, com ate 2 casas. -->
+  <xs:simpleType name="percentual">
+    <xs:restriction base="xs:decimal">
+      <xs:totalDigits value="5"/>
+      <xs:fractionDigits value="2"/>
+      <xs:minInclusive value="0"/>
+      <xs:maxInclusive value="100"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ===================== Tipos complexos ===================== -->
+
+  <xs:complexType name="cabecalho">
+    <xs:sequence>
+      <xs:element name="empresa" type="e:textoObrigatorio"/>
+      <xs:element name="cnpj" type="e:cnpj"/>
+      <xs:element name="origem" type="e:identificadorSistema"/>  <!-- R7 -->
+      <xs:element name="dataArquivo" type="xs:date"/>            <!-- R4 -->
+      <xs:element name="usuario" type="e:textoObrigatorio"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Nome no conteudo, documento (R1) como atributo, igual a v1. -->
+  <xs:complexType name="cliente">
+    <xs:simpleContent>
+      <xs:extension base="e:textoObrigatorio">
+        <xs:attribute name="documento" type="e:documentoParceiro" use="required"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- Valor do desconto no conteudo (R3), percentual (R5) como atributo. -->
+  <xs:complexType name="desconto">
+    <xs:simpleContent>
+      <xs:extension base="e:valorMonetario">
+        <xs:attribute name="percentual" type="e:percentual" use="required"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="pedido">
+    <xs:sequence>
+      <xs:element name="cliente" type="e:cliente"/>
+      <xs:element name="categoria" type="e:textoObrigatorio"/>
+      <xs:element name="subtotal" type="e:valorMonetario"/>
+      <xs:element name="desconto" type="e:desconto"/>
+      <xs:element name="frete" type="e:valorMonetario"/>
+      <xs:element name="valorTotal" type="e:valorMonetario"/>
+      <xs:element name="formaPagamento" type="e:textoObrigatorio"/>
+      <xs:element name="dataPedido" type="xs:date"/>           <!-- R4 -->
+      <xs:element name="vencimento" type="xs:date"/>           <!-- R4 -->
+    </xs:sequence>
+    <xs:attribute name="referencia" type="e:referencia" use="required"/>  <!-- R8 -->
+    <xs:attribute name="status" type="e:statusRegistro" use="required"/>  <!-- R2 -->
+  </xs:complexType>
+
+  <!-- R6: pelo menos um pedido, sem limite superior. -->
+  <xs:complexType name="pedidos">
+    <xs:sequence>
+      <xs:element name="pedido" type="e:pedido" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="totalizador">
+    <xs:sequence>
+      <xs:element name="qtdRegistros" type="xs:positiveInteger"/>
+      <xs:element name="valorTotalGeral" type="e:valorMonetario"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ===================== Elemento raiz ===================== -->
+
+  <xs:element name="movimento">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="cabecalho" type="e:cabecalho"/>
+        <xs:element name="pedidos" type="e:pedidos"/>
+        <xs:element name="totalizador" type="e:totalizador"/>
+      </xs:sequence>
+      <xs:attribute name="versao" type="xs:string" use="required" fixed="2.0"/>
+      <xs:attribute name="tipo" type="xs:string" use="required" fixed="ENTRADA"/>
+    </xs:complexType>
+
+    <!-- R9: a mesma venda nao aparece duas vezes no arquivo. -->
+    <xs:unique name="referenciaUnica">
+      <xs:selector xpath="e:pedidos/e:pedido"/>
+      <xs:field xpath="@referencia"/>
+    </xs:unique>
+  </xs:element>
+
+</xs:schema>

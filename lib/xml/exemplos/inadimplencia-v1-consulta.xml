@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Vendas -> Financeiro: o cliente está em atraso? Schema: inadimplencia-v1.xsd -->
+<consultaInadimplencia xmlns="urn:finanweb:inadimplencia:1.0" versao="1.0" id="vendas-000981">
+  <origem>vendas</origem>
+  <documento>12345678909</documento>
+</consultaInadimplencia>

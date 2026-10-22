@@ -9,7 +9,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { memoryPages, validateXML } from "xmllint-wasm";
 
-export type SchemaXml = "entrada-v1.xsd" | "saida-v1.xsd";
+export type SchemaXml =
+  | "entrada-v1.xsd"
+  | "saida-v1.xsd"
+  // Contratos com os outros setores (lib/xml/contratos.ts).
+  | "entrada-v2.xsd"
+  | "saida-v2.xsd"
+  | "folha-v1.xsd"
+  | "inadimplencia-v1.xsd"
+  | "pendencias-fornecedor-v1.xsd";
 
 export const SCHEMA_POR_TIPO: Record<"ENTRADA" | "SAIDA", SchemaXml> = {
   ENTRADA: "entrada-v1.xsd",
