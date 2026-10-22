@@ -374,6 +374,11 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
         </li>
       </ol>
       <p>
+        Consultas de inadimplência e de pendências com fornecedor (ver{" "}
+        <a href="#contratos">Contratos com outros setores</a>) não passam por aprovação: só leem o banco, e a
+        resposta volta na hora, como arquivo XML, para quem perguntou. Elas aparecem no <a href="/chat">Chat</a>.
+      </p>
+      <p>
         O recebimento depende do serviço <code>npm run socket</code> estar em execução: o servidor não guarda
         mensagens para quem está desconectado. Quando ele está parado, as telas de Socket e Chat mostram
         &quot;Desconectado do servidor&quot;.
