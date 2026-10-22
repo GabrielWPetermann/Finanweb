@@ -48,6 +48,7 @@ export function IntegrarForm() {
           Importado com sucesso: {resultado.qtdRegistros} registro(s), valor total{" "}
           {resultado.valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
           {resultado.qtdIgnorados ? ` - ${resultado.qtdIgnorados} linha(s) ignorada(s) (canceladas).` : ""}
+          {resultado.qtdRepetidos ? ` - ${resultado.qtdRepetidos} já lançado(s) antes, pulado(s).` : ""}
         </p>
       )}
       {resultado.ok && resultado.valorTotal === undefined && (

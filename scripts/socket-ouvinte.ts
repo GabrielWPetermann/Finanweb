@@ -1,7 +1,8 @@
 // Ouvinte de socket do Finanweb: fica conectado ao servidor de chat da
 // disciplina e
-//   - guarda os XMLs de Entrada/Saida que chegam, para alguem aprovar a
-//     importacao na tela /socket (responde ao remetente se aceitou);
+//   - guarda os XMLs de Entrada/Saida (v1, venda e compra v2) e de folha que
+//     chegam, para alguem aprovar a importacao na tela /socket (responde ao
+//     remetente se aceitou);
 //   - responde na hora as consultas de inadimplencia e de pendencias com
 //     fornecedor (lib/socket/consultas.ts), com um XML para quem perguntou;
 //   - grava as mensagens do chat no banco e manda as que foram escritas na
@@ -13,7 +14,7 @@
 // Precisa do .env: BLOB_READ_WRITE_TOKEN (caixa de entrada) e DATABASE_URL (chat).
 
 import net from "node:net";
-import { MAX_BYTES_XML, SCHEMA_POR_TIPO, validarContraXsd } from "@/lib/xml/validador";
+import { MAX_BYTES_XML, validarContraXsd } from "@/lib/xml/validador";
 import { SOCKET_HOST, SOCKET_NOME, SOCKET_PORTA } from "@/lib/socket/config";
 import {
   LeitorProtocolo,
@@ -23,7 +24,7 @@ import {
   type PedacoRecebido,
 } from "@/lib/socket/protocolo";
 import { gravarConectados } from "@/lib/socket/estado";
-import { detectarTipoMovimento, guardarRecebido, lerNamespaceRaiz } from "@/lib/socket/caixa-entrada";
+import { detectarMovimento, guardarRecebido, lerNamespaceRaiz } from "@/lib/socket/caixa-entrada";
 import { ehConsulta, responderConsulta } from "@/lib/socket/consultas";
 import { CONTRATOS } from "@/lib/xml/contratos";
 import {
@@ -124,11 +125,11 @@ function conectar() {
       return;
     }
 
-    const tipo = detectarTipoMovimento(conteudo);
-    if (!tipo) {
+    const formato = detectarMovimento(conteudo);
+    if (!formato) {
       // Contrato publicado em /contratos cujo envio ainda nao e importado
-      // (venda, compra e folha v2): a recusa diz isso, em vez de tratar o
-      // namespace como desconhecido.
+      // (hoje nenhum; serve para a proxima versao): a recusa diz isso, em vez
+      // de tratar o namespace como desconhecido.
       const namespace = lerNamespaceRaiz(conteudo);
       if (CONTRATOS.some((c) => c.namespace === namespace)) {
         log(`recusado "${nomeArquivo}" de ${remetente}: ${namespace} ainda não é importado`);
@@ -141,14 +142,15 @@ function conectar() {
       log(`recusado "${nomeArquivo}" de ${remetente}: namespace desconhecido`);
       responder(
         remetente,
-        `"${nomeArquivo}" recusado: não é um movimento nem uma consulta do Finanweb (namespace urn:finanweb:entrada:1.0, urn:finanweb:saida:1.0, urn:finanweb:inadimplencia:1.0 ou urn:finanweb:pendencias-fornecedor:1.0).`
+        `"${nomeArquivo}" recusado: não é um movimento nem uma consulta do Finanweb. Os formatos aceitos estão na página /contratos do Finanweb.`
       );
       return;
     }
 
     // Validar ja na chegada da a resposta na hora para quem mandou, em vez de
     // o erro so aparecer quando alguem tentar aprovar.
-    const erros = await validarContraXsd(conteudo, SCHEMA_POR_TIPO[tipo]);
+    const { tipo, schema } = formato;
+    const erros = await validarContraXsd(conteudo, schema);
     if (erros.length > 0) {
       log(`recusado "${nomeArquivo}" de ${remetente}: ${erros[0]}`);
       responder(remetente, `"${nomeArquivo}" recusado pelo XSD: ${erros.slice(0, 3).join(" ")}`);

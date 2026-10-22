@@ -16,11 +16,16 @@ import { validarContraXsd, type SchemaXml } from "@/lib/xml/validador";
 type Banco = Prisma.TransactionClient;
 type No = Record<string, unknown>;
 
-// O vencimento so entra no banco quando os envios v2 forem importados. Ate
-// la, conta a receber vence 30 dias depois do pedido, e a despesa pendente
+// Os envios v2 trazem o vencimento. Lancamento sem ele (manual, CSV ou XML
+// v1): conta a receber vence 30 dias depois do pedido, e a despesa pendente
 // vence na dataPagamento, que e a data prevista para pagar.
 const PRAZO_RECEBIMENTO_DIAS = 30;
 const DIA_MS = 86_400_000;
+
+// Mesmo padrao do XSD das respostas. A referencia da folha leva o CPF junto
+// ("FOLHA-2026-10/98765432100") e pode passar do limite: o atributo e
+// opcional, entao fica de fora em vez de derrubar a resposta.
+const REGEX_REFERENCIA = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,59}$/;
 
 // Limites do textoObrigatorio dos XSDs. Nome cadastrado na mao pode passar
 // disso, e um campo fora do contrato derrubaria a resposta inteira.
@@ -97,6 +102,10 @@ function variantesDocumento(digitos: string): string[] {
   return variantes;
 }
 
+function atributoReferencia(referencia: string | null): string {
+  return referencia && REGEX_REFERENCIA.test(referencia) ? ` referencia="${referencia}"` : "";
+}
+
 /** Documento gravado -> atributo do XSD (so digitos, 11 ou 14), ou nada. */
 function atributoDocumento(documento: string | null): string {
   const digitos = (documento ?? "").replace(/\D/g, "");
@@ -126,20 +135,27 @@ async function responderInadimplencia(db: Banco, consulta: No, hoje: string): Pr
       clienteId: { in: clientes.map((c) => c.id) },
       status: { equals: "PENDENTE", mode: "insensitive" },
     },
-    select: { valorTotal: true, dataPedido: true },
-    orderBy: { dataPedido: "asc" },
+    select: { valorTotal: true, dataPedido: true, vencimento: true, referencia: true },
   });
+
+  const atrasados = pedidos
+    .map((pedido) => ({
+      ...pedido,
+      venceEm: formatarDataIso(
+        pedido.vencimento ?? new Date(pedido.dataPedido.getTime() + PRAZO_RECEBIMENTO_DIAS * DIA_MS)
+      ),
+    }))
+    .filter((pedido) => pedido.venceEm < hoje)
+    .sort((a, b) => a.venceEm.localeCompare(b.venceEm));
 
   const titulos: string[] = [];
   let emAtraso = 0;
-  for (const pedido of pedidos) {
-    const vencimento = formatarDataIso(new Date(pedido.dataPedido.getTime() + PRAZO_RECEBIMENTO_DIAS * DIA_MS));
-    if (vencimento >= hoje) continue;
+  for (const pedido of atrasados) {
     emAtraso += Number(pedido.valorTotal);
-    titulos.push(`    <titulo>
+    titulos.push(`    <titulo${atributoReferencia(pedido.referencia)}>
       <valor>${valor(pedido.valorTotal)}</valor>
-      <vencimento>${vencimento}</vencimento>
-      <diasAtraso>${diasEntre(vencimento, hoje)}</diasAtraso>
+      <vencimento>${pedido.venceEm}</vencimento>
+      <diasAtraso>${diasEntre(pedido.venceEm, hoje)}</diasAtraso>
     </titulo>`);
   }
 
@@ -175,22 +191,26 @@ async function responderPendencias(db: Banco, consulta: No): Promise<Resultado> 
     select: {
       valor: true,
       dataPagamento: true,
+      vencimento: true,
+      referencia: true,
       fornecedor: { select: { nome: true, documento: true } },
       categoria: { select: { nome: true } },
     },
-    orderBy: { dataPagamento: "asc" },
   });
 
   let total = 0;
-  const pendencias = despesas.map((d) => {
-    total += Number(d.valor);
-    return `    <pendencia>
+  const pendencias = despesas
+    .map((d) => ({ ...d, venceEm: formatarDataIso(d.vencimento ?? d.dataPagamento) }))
+    .sort((a, b) => a.venceEm.localeCompare(b.venceEm))
+    .map((d) => {
+      total += Number(d.valor);
+      return `    <pendencia${atributoReferencia(d.referencia)}>
       <fornecedor${atributoDocumento(d.fornecedor.documento)}>${escaparXml(textoContrato(d.fornecedor.nome, "(sem nome)"))}</fornecedor>
       <categoria>${escaparXml(textoContrato(d.categoria.nome, "(sem categoria)"))}</categoria>
       <valor>${valor(d.valor)}</valor>
-      <vencimento>${formatarDataIso(d.dataPagamento)}</vencimento>
+      <vencimento>${d.venceEm}</vencimento>
     </pendencia>`;
-  });
+    });
 
   return {
     corpo: `${pendencias.length > 0 ? `  <pendencias>\n${pendencias.join("\n")}\n  </pendencias>` : "  <pendencias/>"}
