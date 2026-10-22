@@ -37,6 +37,19 @@ export function detectarTipoMovimento(conteudo: string): TipoMovimento | null {
   return raiz ? (NAMESPACES[raiz[1]] ?? null) : null;
 }
 
+/**
+ * Namespace padrao (xmlns="...") do elemento raiz, seja qual for o nome dele,
+ * ou null. E por ele que o ouvinte separa movimento, consulta e contrato que
+ * ainda nao processa. Comentarios sao ignorados: um exemplo comentado antes da
+ * raiz nao pode ser confundido com ela.
+ */
+export function lerNamespaceRaiz(conteudo: string): string | null {
+  const semComentarios = conteudo.replace(/<!--[\s\S]*?-->/g, "");
+  const raiz = /<[A-Za-z_][^\s/>]*([^>]*)>/.exec(semComentarios);
+  if (!raiz) return null;
+  return /\bxmlns="([^"]+)"/.exec(raiz[1])?.[1] ?? null;
+}
+
 // "<timestamp>.<metadados em base64url>.xml": base64url nao tem ponto nem
 // barra, entao o pathname continua seguro e da para separar as partes.
 function montarPathname(metadados: Metadados): string {

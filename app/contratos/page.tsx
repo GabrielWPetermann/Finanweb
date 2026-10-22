@@ -75,11 +75,18 @@ export default function ContratosPage() {
           <code>
             {SOCKET_HOST}:{SOCKET_PORTA}
           </code>
-          , para <code>#{SOCKET_NOME}</code>.
+          , para <code>#{SOCKET_NOME}</code>, com extensão <code>.xml</code>. Termine com o pedaço de tamanho 0
+          que marca o fim do arquivo: sem ele, o Finanweb espera 10 segundos antes de processar.
         </li>
         <li>
           A resposta volta em privado para quem enviou. Nos envios, uma mensagem no chat dizendo se o arquivo foi
-          aceito ou o motivo da recusa. Nas consultas, um arquivo XML com a resposta.
+          aceito ou o motivo da recusa. Nas consultas, um arquivo com o mesmo <code>id</code>:{" "}
+          <code>resposta-inadimplencia-&lt;id&gt;.xml</code> ou <code>resposta-pendencias-&lt;id&gt;.xml</code>.
+          Consulta inválida volta em texto no chat, com o motivo.
+        </li>
+        <li>
+          O servidor não guarda mensagens para quem está desconectado: se a resposta de uma consulta não chegar,
+          tente de novo depois.
         </li>
       </ol>
 

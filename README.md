@@ -214,6 +214,18 @@ entrada tem **Importar** (o mesmo caminho do `/integrar` — XSD, parser, Blob
 e banco — e o arquivo vai para o Histórico em nome de quem aprovou) ou
 **Descartar**.
 
+**Consultas** (inadimplência de cliente e pendências com fornecedor, ver
+"Contratos com outros setores") não passam pela caixa de entrada: só leem o
+banco, então o ouvinte responde na hora, com um XML enviado como arquivo
+para o id de quem perguntou (`resposta-inadimplencia-<id>.xml` ou
+`resposta-pendencias-<id>.xml`). A lógica fica em `lib/socket/consultas.ts`,
+separada do socket, e a própria resposta é conferida no XSD antes de sair;
+falha ao ler o banco vira uma resposta com `<erro>`. Enquanto o vencimento
+não existe no banco, uma conta a receber PENDENTE vence 30 dias depois do
+pedido, e a despesa PENDENTE vence na `dataPagamento`. Os envios v2 (venda,
+compra, folha) ainda são recusados, com uma resposta dizendo que o Finanweb
+ainda não os importa.
+
 Como o ouvinte só recebe enquanto está rodando (o servidor de chat não
 guarda mensagem para quem está offline), ele precisa estar no ar durante a
 troca. Ele lê o `.env` do projeto, então roda em qualquer máquina com o
