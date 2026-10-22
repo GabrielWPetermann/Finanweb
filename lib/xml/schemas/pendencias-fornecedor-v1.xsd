@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Schema da consulta de pendencias com fornecedor: o setor de Compras
+  pergunta ao Financeiro o que esta em aberto a pagar, de um fornecedor ou de
+  todos.
+
+  Mesmo modelo da inadimplencia-v1.xsd: um schema, dois elementos raiz
+  (<consultaPendencias> e <respostaPendencias>), e o id da consulta volta na
+  resposta. Sem <documento> na consulta, a resposta traz todos os
+  fornecedores.
+
+  Pendencia = conta a pagar em aberto (status PENDENTE), vencida ou nao; quem
+  pergunta compara o vencimento com a dataConsulta. Uma consulta que nao pode
+  ser respondida recebe <erro> no lugar do resultado; uma que nem passa no
+  XSD e respondida em texto no chat.
+
+  Regras de validacao (numeracao dos demais schemas do Finanweb):
+    R1  documento do fornecedor: so digitos, 11 (CPF) ou 14 (CNPJ). Na
+        resposta e opcional: fornecedor lancado direto no Financeiro pode nao
+        ter documento.
+    R3  valores monetarios: decimal de ate 14 digitos, 2 casas, nao negativo.
+    R4  datas: xs:date (AAAA-MM-DD).
+    R7  origem: letras minusculas, digitos e hifen, comecando por letra.
+    R8  referencia da pendencia: sem espacos, ate 60 caracteres. Opcional,
+        pelo mesmo motivo do documento.
+    R10 id da consulta: letras, digitos, ponto, sublinhado e hifen, ate 64.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:p="urn:finanweb:pendencias-fornecedor:1.0"
+           targetNamespace="urn:finanweb:pendencias-fornecedor:1.0"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <!-- ===================== Tipos simples ===================== -->
+
+  <!-- Texto obrigatorio. Nao pode ser vazio nem ter espaco no inicio/fim. -->
+  <xs:simpleType name="textoObrigatorio">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="120"/>
+      <xs:pattern value="\S(.*\S)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R1: CPF (11 digitos) ou CNPJ (14 digitos), so numeros. -->
+  <xs:simpleType name="documentoParceiro">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{11}|\d{14}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R7: nome do sistema que pergunta, o mesmo do servidor da turma. -->
+  <xs:simpleType name="identificadorSistema">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[a-z][a-z0-9\-]{1,29}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R8: identificador da conta no sistema de origem. -->
+  <xs:simpleType name="referencia">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9][A-Za-z0-9._/\-]{0,59}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R10: id da consulta, escolhido por quem pergunta. -->
+  <xs:simpleType name="idConsulta">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9][A-Za-z0-9._\-]{0,63}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R3: valor monetario = Decimal(14,2), nao negativo. -->
+  <xs:simpleType name="valorMonetario">
+    <xs:restriction base="xs:decimal">
+      <xs:totalDigits value="14"/>
+      <xs:fractionDigits value="2"/>
+      <xs:minInclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Motivo de uma consulta nao respondida, em uma linha. -->
+  <xs:simpleType name="mensagemErro">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="500"/>
+      <xs:pattern value="\S(.*\S)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ===================== Tipos complexos ===================== -->
+
+  <!-- Nome no conteudo, documento (R1) como atributo opcional. -->
+  <xs:complexType name="fornecedor">
+    <xs:simpleContent>
+      <xs:extension base="p:textoObrigatorio">
+        <xs:attribute name="documento" type="p:documentoParceiro" use="optional"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="pendencia">
+    <xs:sequence>
+      <xs:element name="fornecedor" type="p:fornecedor"/>
+      <xs:element name="categoria" type="p:textoObrigatorio"/>
+      <xs:element name="valor" type="p:valorMonetario"/>       <!-- R3 -->
+      <xs:element name="vencimento" type="xs:date"/>           <!-- R4 -->
+    </xs:sequence>
+    <xs:attribute name="referencia" type="p:referencia" use="optional"/>  <!-- R8 -->
+  </xs:complexType>
+
+  <!-- Vazio quando nao ha nada em aberto. -->
+  <xs:complexType name="pendencias">
+    <xs:sequence>
+      <xs:element name="pendencia" type="p:pendencia" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="totalizador">
+    <xs:sequence>
+      <xs:element name="qtdPendencias" type="xs:nonNegativeInteger"/>
+      <xs:element name="valorTotal" type="p:valorMonetario"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ===================== Elementos raiz ===================== -->
+
+  <xs:element name="consultaPendencias">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="origem" type="p:identificadorSistema"/>               <!-- R7 -->
+        <xs:element name="documento" type="p:documentoParceiro" minOccurs="0"/>  <!-- R1 -->
+      </xs:sequence>
+      <xs:attribute name="versao" type="xs:string" use="required" fixed="1.0"/>
+      <xs:attribute name="id" type="p:idConsulta" use="required"/>  <!-- R10 -->
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="respostaPendencias">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="dataConsulta" type="xs:date"/>  <!-- R4 -->
+        <xs:choice>
+          <xs:sequence>
+            <xs:element name="pendencias" type="p:pendencias"/>
+            <xs:element name="totalizador" type="p:totalizador"/>
+          </xs:sequence>
+          <xs:element name="erro" type="p:mensagemErro"/>
+        </xs:choice>
+      </xs:sequence>
+      <xs:attribute name="versao" type="xs:string" use="required" fixed="1.0"/>
+      <xs:attribute name="id" type="p:idConsulta" use="required"/>  <!-- R10 -->
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

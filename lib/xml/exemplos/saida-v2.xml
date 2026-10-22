@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Compras -> Financeiro: compras que viram contas a pagar. Schema: saida-v2.xsd -->
+<movimento xmlns="urn:finanweb:saida:2.0" versao="2.0" tipo="SAIDA">
+  <cabecalho>
+    <empresa>Empresa LTDA</empresa>
+    <cnpj>12345678000199</cnpj>
+    <origem>compras</origem>
+    <dataArquivo>2026-10-21</dataArquivo>
+    <usuario>maria.compras</usuario>
+  </cabecalho>
+  <despesas>
+    <despesa referencia="C-2026-000310" status="PENDENTE">
+      <fornecedor documento="11444777000161">Distribuidora Central LTDA</fornecedor>
+      <categoria>Mercadorias</categoria>
+      <valor>2350.00</valor>
+      <formaPagamento>Boleto</formaPagamento>
+      <dataEmissao>2026-10-21</dataEmissao>
+      <vencimento>2026-11-04</vencimento>
+    </despesa>
+    <despesa referencia="C-2026-000311" status="PENDENTE">
+      <fornecedor documento="45723174000110">Papelaria Modelo LTDA</fornecedor>
+      <categoria>Material de escritório</categoria>
+      <valor>480.90</valor>
+      <formaPagamento>Pix</formaPagamento>
+      <dataEmissao>2026-10-21</dataEmissao>
+      <vencimento>2026-10-28</vencimento>
+    </despesa>
+  </despesas>
+  <totalizador>
+    <qtdRegistros>2</qtdRegistros>
+    <valorTotalGeral>2830.90</valorTotalGeral>
+  </totalizador>
+</movimento>

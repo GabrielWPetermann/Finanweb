@@ -155,7 +155,7 @@ export default function DocumentacaoPage() {
       <p className="subtitulo">
         <a href="#entrada-de-dados">Entrada de dados</a> · <a href="#csv">CSV</a> · <a href="#xml">XML</a> ·{" "}
         <a href="#cadastro">Clientes e Fornecedores</a> · <a href="#socket">Socket</a> · <a href="#chat">Chat</a>{" "}
-        · <a href="#particularidades">Particularidades</a>
+        · <a href="#contratos">Contratos com outros setores</a> · <a href="#particularidades">Particularidades</a>
       </p>
 
       <h2 id="entrada-de-dados">Entrada de dados</h2>
@@ -399,6 +399,13 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
         Todos os usuários do Finanweb escrevem pela mesma conexão, então as mensagens chegam aos outros sistemas
         com o usuário na frente: <code>{SOCKET_NOME}#5: [ana] bom dia</code>. Enquanto o serviço estiver
         desconectado, a mensagem fica marcada como pendente e é enviada quando a conexão voltar.
+      </p>
+
+      <h2 id="contratos">Contratos com outros setores</h2>
+      <p>
+        Os XSDs e exemplos das mensagens trocadas com Vendas, Compras e RH ficam em{" "}
+        <a href="/contratos">Contratos de integração</a>, página pública (sem login) para os outros setores da
+        turma. É esse o endereço a passar para eles; a tela de login também tem o link.
       </p>
 
       <h2 id="particularidades">Particularidades</h2>

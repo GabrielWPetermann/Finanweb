@@ -261,9 +261,10 @@ button[type="button"]:hover {
   max-width: none;
 }
 
-/* O .card ja separa os filhos com gap; a margem propria do h2 empilharia por
-   cima disso e descolaria o titulo do topo. */
-.card > h2 {
+/* O .card ja separa os filhos com gap; a margem propria do titulo empilharia
+   por cima disso e descolaria o titulo do topo. */
+.card > h2,
+.card > h3 {
   margin: 0;
 }
 

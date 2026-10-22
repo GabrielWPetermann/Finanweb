@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Schema da folha de pagamento que o RH envia ao Financeiro, uma por
+  competencia (mes de referencia). Para o Financeiro, cada funcionario e um
+  valor a pagar na dataPagamento.
+
+  Segue as convencoes dos movimentos v2: cabecalho com a origem e referencia
+  do sistema de origem, aqui no elemento raiz ("FOLHA-2026-10"). O par
+  origem + referencia identifica a folha: reenviar a mesma nao duplica o
+  lancamento, e uma folha complementar (13o, rescisao) usa outra referencia.
+
+  O funcionario e identificado pelo CPF; a matricula do RH e opcional.
+
+  Regras de validacao (numeracao dos demais schemas do Finanweb):
+    R1  cnpj do cabecalho: 14 digitos. cpf do funcionario: 11 digitos.
+    R3  valores monetarios: decimal de ate 14 digitos, 2 casas, nao negativo.
+    R4  datas: xs:date (AAAA-MM-DD).
+    R6  estrutura: cabecalho -> competencia -> dataPagamento -> funcionarios
+        -> totalizador, nessa ordem; ao menos um funcionario; textos
+        obrigatorios nao vazios e sem espaco nas pontas.
+    R7  origem: letras minusculas, digitos e hifen, comecando por letra.
+    R8  referencia: obrigatoria, sem espacos, ate 60 caracteres.
+    R9  cpf unico dentro da folha.
+    R11 competencia: xs:gYearMonth (AAAA-MM).
+
+  Ficam para o codigo: salarioLiquido = salarioBruto - descontos e as somas
+  do totalizador (XSD 1.0 nao expressa regra entre campos).
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:f="urn:finanweb:folha:1.0"
+           targetNamespace="urn:finanweb:folha:1.0"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <!-- ===================== Tipos simples ===================== -->
+
+  <!-- R6: texto obrigatorio. Nao pode ser vazio nem ter espaco no inicio/fim. -->
+  <xs:simpleType name="textoObrigatorio">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="120"/>
+      <xs:pattern value="\S(.*\S)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R1: CNPJ da empresa, 14 digitos. -->
+  <xs:simpleType name="cnpj">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{14}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R1: CPF do funcionario, 11 digitos. -->
+  <xs:simpleType name="cpf">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{11}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Matricula no RH: letras, digitos e hifen, ate 20 caracteres. -->
+  <xs:simpleType name="matricula">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9\-]{1,20}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R7: nome do sistema de origem, o mesmo do servidor da turma. -->
+  <xs:simpleType name="identificadorSistema">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[a-z][a-z0-9\-]{1,29}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R8: identificador da folha no sistema de origem. -->
+  <xs:simpleType name="referencia">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9][A-Za-z0-9._/\-]{0,59}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R3: valor monetario = Decimal(14,2), nao negativo. -->
+  <xs:simpleType name="valorMonetario">
+    <xs:restriction base="xs:decimal">
+      <xs:totalDigits value="14"/>
+      <xs:fractionDigits value="2"/>
+      <xs:minInclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ===================== Tipos complexos ===================== -->
+
+  <xs:complexType name="cabecalho">
+    <xs:sequence>
+      <xs:element name="empresa" type="f:textoObrigatorio"/>
+      <xs:element name="cnpj" type="f:cnpj"/>
+      <xs:element name="origem" type="f:identificadorSistema"/>  <!-- R7 -->
+      <xs:element name="dataArquivo" type="xs:date"/>            <!-- R4 -->
+      <xs:element name="usuario" type="f:textoObrigatorio"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="funcionario">
+    <xs:sequence>
+      <xs:element name="nome" type="f:textoObrigatorio"/>
+      <xs:element name="salarioBruto" type="f:valorMonetario"/>
+      <xs:element name="descontos" type="f:valorMonetario"/>
+      <!-- O que o Financeiro paga ao funcionario. -->
+      <xs:element name="salarioLiquido" type="f:valorMonetario"/>
+    </xs:sequence>
+    <xs:attribute name="cpf" type="f:cpf" use="required"/>              <!-- R1 -->
+    <xs:attribute name="matricula" type="f:matricula" use="optional"/>
+  </xs:complexType>
+
+  <!-- R6: pelo menos um funcionario, sem limite superior. -->
+  <xs:complexType name="funcionarios">
+    <xs:sequence>
+      <xs:element name="funcionario" type="f:funcionario" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="totalizador">
+    <xs:sequence>
+      <xs:element name="qtdFuncionarios" type="xs:positiveInteger"/>
+      <xs:element name="valorLiquidoTotal" type="f:valorMonetario"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ===================== Elemento raiz ===================== -->
+
+  <xs:element name="folha">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="cabecalho" type="f:cabecalho"/>
+        <xs:element name="competencia" type="xs:gYearMonth"/>  <!-- R11 -->
+        <xs:element name="dataPagamento" type="xs:date"/>      <!-- R4 -->
+        <xs:element name="funcionarios" type="f:funcionarios"/>
+        <xs:element name="totalizador" type="f:totalizador"/>
+      </xs:sequence>
+      <xs:attribute name="versao" type="xs:string" use="required" fixed="1.0"/>
+      <xs:attribute name="referencia" type="f:referencia" use="required"/>  <!-- R8 -->
+    </xs:complexType>
+
+    <!-- R9: o mesmo funcionario nao aparece duas vezes na folha. -->
+    <xs:unique name="cpfUnico">
+      <xs:selector xpath="f:funcionarios/f:funcionario"/>
+      <xs:field xpath="@cpf"/>
+    </xs:unique>
+  </xs:element>
+
+</xs:schema>

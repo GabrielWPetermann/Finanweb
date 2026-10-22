@@ -18,5 +18,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!login|solicitar-cadastro|api|_next/static|_next/image|favicon.ico).*)"],
+  // contratos: pagina publica com os XSDs para os outros setores da turma.
+  matcher: ["/((?!login|solicitar-cadastro|contratos|api|_next/static|_next/image|favicon.ico).*)"],
 };
