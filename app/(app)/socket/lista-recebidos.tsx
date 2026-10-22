@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import type { ResultadoImportacao } from "@/lib/importacao";
+import type { TipoMovimento } from "@/lib/socket/caixa-entrada";
 import { descartarRecebidoAction, importarRecebidoAction } from "./actions";
 
 export interface LinhaRecebido {
@@ -9,9 +10,11 @@ export interface LinhaRecebido {
   recebidoEm: string;
   remetente: string;
   nomeArquivo: string;
-  tipo: "ENTRADA" | "SAIDA";
+  tipo: TipoMovimento;
   tamanho: string;
 }
+
+const NOME_TIPO: Record<TipoMovimento, string> = { ENTRADA: "Entrada", SAIDA: "Saída", FOLHA: "Folha" };
 
 const estadoInicial: ResultadoImportacao = { ok: false };
 
@@ -31,7 +34,8 @@ export function ListaRecebidos({ linhas }: { linhas: LinhaRecebido[] }) {
         <p className="sucesso">
           Importado: {resultado.qtdRegistros} registro(s), valor total{" "}
           {resultado.valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-          {resultado.qtdIgnorados ? ` - ${resultado.qtdIgnorados} linha(s) ignorada(s) (canceladas).` : ""} Já
+          {resultado.qtdIgnorados ? ` - ${resultado.qtdIgnorados} linha(s) ignorada(s) (canceladas).` : ""}
+          {resultado.qtdRepetidos ? ` - ${resultado.qtdRepetidos} já lançado(s) antes, pulado(s).` : ""} Já
           aparece no Histórico.
         </p>
       )}
@@ -53,7 +57,7 @@ export function ListaRecebidos({ linhas }: { linhas: LinhaRecebido[] }) {
               <td>{linha.recebidoEm}</td>
               <td>{linha.remetente}</td>
               <td>{linha.nomeArquivo}</td>
-              <td>{linha.tipo === "ENTRADA" ? "Entrada" : "Saída"}</td>
+              <td>{NOME_TIPO[linha.tipo]}</td>
               <td>{linha.tamanho}</td>
               <td>
                 <div className="linha-acoes">

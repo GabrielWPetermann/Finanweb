@@ -214,6 +214,17 @@ entrada tem **Importar** (o mesmo caminho do `/integrar` — XSD, parser, Blob
 e banco — e o arquivo vai para o Histórico em nome de quem aprovou) ou
 **Descartar**.
 
+**Consultas** (inadimplência de cliente e pendências com fornecedor, ver
+"Contratos com outros setores") não passam pela caixa de entrada: só leem o
+banco, então o ouvinte responde na hora, com um XML enviado como arquivo
+para o id de quem perguntou (`resposta-inadimplencia-<id>.xml` ou
+`resposta-pendencias-<id>.xml`). A lógica fica em `lib/socket/consultas.ts`,
+separada do socket, e a própria resposta é conferida no XSD antes de sair;
+falha ao ler o banco vira uma resposta com `<erro>`. O vencimento vem dos
+envios v2; lançamento sem ele (manual, CSV, XML v1) vence 30 dias depois do
+pedido, na conta a receber, e na `dataPagamento`, na despesa. Cada título e
+pendência vindo de outro setor sai com a `referencia` dele.
+
 Como o ouvinte só recebe enquanto está rodando (o servidor de chat não
 guarda mensagem para quem está offline), ele precisa estar no ar durante a
 troca. Ele lê o `.env` do projeto, então roda em qualquer máquina com o
@@ -267,11 +278,30 @@ contratos XML: um XSD em `lib/xml/schemas/` e um exemplo válido em
 | Consulta de inadimplência | Vendas | responde | `inadimplencia-v1.xsd` |
 | Pendências com fornecedor | Compras | responde | `pendencias-fornecedor-v1.xsd` |
 
-Por enquanto só os contratos estão publicados: o ouvinte ainda recusa esses
-namespaces, e responder às consultas e importar os envios v2 são os próximos
-passos. Os movimentos v1 continuam aceitos, como formato interno do Finanweb
-(exportar e reimportar). As convenções (origem + referência nos envios, `id`
-nas consultas, CPF/CNPJ como identificação) estão no topo de cada XSD.
+As consultas são respondidas na hora (ver "Socket"). Os envios vão para a
+caixa de entrada de `/socket` como os outros XMLs, e também podem ser
+importados em `/integrar`; o namespace diz qual parser usar. Os movimentos v1
+continuam aceitos, como formato interno do Finanweb (exportar e reimportar).
+As convenções (origem + referência nos envios, `id` nas consultas, CPF/CNPJ
+como identificação) estão no topo de cada XSD.
+
+Como os envios são gravados:
+
+- **Venda** (`entrada-v2`): um recebimento por pedido, com o `vencimento`.
+- **Compra** (`saida-v2`): um pagamento por despesa. A `dataPagamento` é a
+  `dataEmissao`, para a compra aparecer nos relatórios no período em que foi
+  feita; o prazo fica no `vencimento`.
+- **Folha** (`folha-v1`): um pagamento por funcionário, com o salário
+  líquido, categoria "Folha de pagamento", `PENDENTE`, com `dataPagamento` e
+  `vencimento` na data de pagamento da folha. O funcionário vira fornecedor,
+  pelo CPF, e a referência é `<referência da folha>/<cpf>`.
+- **Reenvio**: `origem` + `referencia` são únicos no banco. O que já foi
+  lançado é pulado e o resto do arquivo entra; a tela diz quantos foram
+  pulados. Se nada for novo, a importação é recusada e o arquivo fica na
+  caixa para ser descartado.
+- `CANCELADO` é ignorado. Fora do XSD, o parser confere `valorTotal =
+  subtotal - desconto + frete`, vencimento a partir do pedido ou da emissão,
+  e na folha o líquido de cada funcionário e o totalizador.
 
 Os outros setores não têm conta no Finanweb, então tudo isso fica **fora do
 login**: a página `/contratos` (linkada na tela de login) lista as mensagens e

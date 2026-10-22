@@ -168,8 +168,8 @@ export default function DocumentacaoPage() {
           Fornecedores em CSV.
         </li>
         <li>
-          <strong>Socket</strong>: XML de Entrada ou Saída recebido de outro sistema pelo servidor da turma,
-          importado após aprovação em <a href="/socket">Socket</a>.
+          <strong>Socket</strong>: XML de Entrada ou Saída, venda, compra ou folha de pagamento recebido de outro
+          sistema pelo servidor da turma, importado após aprovação em <a href="/socket">Socket</a>.
         </li>
       </ul>
       <p>
@@ -374,6 +374,11 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
         </li>
       </ol>
       <p>
+        Consultas de inadimplência e de pendências com fornecedor (ver{" "}
+        <a href="#contratos">Contratos com outros setores</a>) não passam por aprovação: só leem o banco, e a
+        resposta volta na hora, como arquivo XML, para quem perguntou. Elas aparecem no <a href="/chat">Chat</a>.
+      </p>
+      <p>
         O recebimento depende do serviço <code>npm run socket</code> estar em execução: o servidor não guarda
         mensagens para quem está desconectado. Quando ele está parado, as telas de Socket e Chat mostram
         &quot;Desconectado do servidor&quot;.
@@ -407,6 +412,22 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
         <a href="/contratos">Contratos de integração</a>, página pública (sem login) para os outros setores da
         turma. É esse o endereço a passar para eles; a tela de login também tem o link.
       </p>
+      <ul>
+        <li>
+          <strong>Venda</strong>: cada pedido vira um recebimento, com o vencimento.
+        </li>
+        <li>
+          <strong>Compra</strong>: cada despesa vira um pagamento na data de emissão, com o vencimento.
+        </li>
+        <li>
+          <strong>Folha</strong>: cada funcionário vira um pagamento pendente do salário líquido, na categoria
+          &quot;Folha de pagamento&quot;. O funcionário é cadastrado como fornecedor, pelo CPF.
+        </li>
+        <li>
+          <strong>Reenvio</strong>: o que já foi lançado com a mesma origem e referência é pulado, e a importação
+          diz quantos foram.
+        </li>
+      </ul>
 
       <h2 id="particularidades">Particularidades</h2>
       <ul>

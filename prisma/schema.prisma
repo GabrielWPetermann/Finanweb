@@ -104,7 +104,16 @@ model PedidoAgrupado {
   formaPagamento     String
   dataPedido         DateTime
   status             String
+  // Data em que o valor deve ser recebido. Nulo nos lancamentos anteriores
+  // aos envios v2: a inadimplencia usa dataPedido + 30 dias para eles.
+  vencimento         DateTime?
+  // Sistema que mandou (nome no servidor da turma) e id do registro nele.
+  // Nulos nos lancamentos manuais e nas importacoes v1; no Postgres nulos nao
+  // colidem no unique, entao so o envio v2 repetido e barrado.
+  origem             String?
+  referencia         String?
 
+  @@unique([origem, referencia])
   @@index([clienteId])
   @@index([dataPedido])
   @@index([categoriaId])
@@ -123,7 +132,12 @@ model DespesaAgrupada {
   formaPagamento String
   dataPagamento  DateTime
   status         String
+  // Ver PedidoAgrupado. Nulo = vence na dataPagamento.
+  vencimento     DateTime?
+  origem         String?
+  referencia     String?
 
+  @@unique([origem, referencia])
   @@index([fornecedorId])
   @@index([dataPagamento])
   @@index([categoriaId])
