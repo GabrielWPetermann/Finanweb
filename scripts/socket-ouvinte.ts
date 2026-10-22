@@ -2,6 +2,8 @@
 // disciplina e
 //   - guarda os XMLs de Entrada/Saida que chegam, para alguem aprovar a
 //     importacao na tela /socket (responde ao remetente se aceitou);
+//   - responde na hora as consultas de inadimplencia e de pendencias com
+//     fornecedor (lib/socket/consultas.ts), com um XML para quem perguntou;
 //   - grava as mensagens do chat no banco e manda as que foram escritas na
 //     tela /chat, que ficam numa fila no banco.
 //
@@ -21,7 +23,9 @@ import {
   type PedacoRecebido,
 } from "@/lib/socket/protocolo";
 import { gravarConectados } from "@/lib/socket/estado";
-import { detectarTipoMovimento, guardarRecebido } from "@/lib/socket/caixa-entrada";
+import { detectarTipoMovimento, guardarRecebido, lerNamespaceRaiz } from "@/lib/socket/caixa-entrada";
+import { ehConsulta, responderConsulta } from "@/lib/socket/consultas";
+import { CONTRATOS } from "@/lib/xml/contratos";
 import {
   linhaParaEnviar,
   marcarEnviada,
@@ -77,10 +81,35 @@ function conectar() {
     gravarEmOrdem("no chat", () => registrarEnviadaPeloOuvinte(remetente, texto));
   }
 
+  // Consulta so le o banco, entao e respondida na hora, sem passar pela
+  // aprovacao da caixa de entrada. A resposta vai como arquivo, pela mesma
+  // conexao, para o id de quem perguntou.
+  async function atenderConsulta(remetente: string, nomeArquivo: string, conteudo: string) {
+    const resposta = await responderConsulta(conteudo);
+    if (!resposta.ok) {
+      log(`recusada consulta "${nomeArquivo}" de ${remetente}: ${resposta.erro}`);
+      responder(remetente, `"${nomeArquivo}" recusado: ${resposta.erro}`);
+      return;
+    }
+
+    const id = remetente.slice(remetente.lastIndexOf("#") + 1);
+    if (socket.destroyed) return;
+    // Todos os pedacos num laco so, sem await no meio: a fila do chat tambem
+    // escreve arquivos nesta conexao, e um pedaco nao pode cair no meio do
+    // outro.
+    for (const pedaco of montarPedacos(resposta.nomeArquivo, Buffer.from(resposta.xml, "utf8"), id)) {
+      socket.write(pedaco);
+    }
+    log(`consulta "${nomeArquivo}" de ${remetente} respondida com "${resposta.nomeArquivo}": ${resposta.resumo}`);
+    gravarEmOrdem("no chat", () =>
+      registrarEnviadaPeloOuvinte(remetente, `"${resposta.nomeArquivo}" enviado: ${resposta.resumo}`)
+    );
+  }
+
   async function processarArquivo(remetente: string, nomeArquivo: string, arquivo: ArquivoEmAndamento) {
     if (!nomeArquivo.toLowerCase().endsWith(".xml")) {
       log(`ignorado "${nomeArquivo}" de ${remetente}: não é XML`);
-      responder(remetente, `"${nomeArquivo}" ignorado: o Finanweb recebe só XML de Entrada ou Saída.`);
+      responder(remetente, `"${nomeArquivo}" ignorado: o Finanweb recebe só arquivos .xml.`);
       return;
     }
     if (arquivo.tamanho > MAX_BYTES_XML) {
@@ -90,12 +119,29 @@ function conectar() {
     }
 
     const conteudo = Buffer.concat(arquivo.partes).toString("utf8");
+    if (ehConsulta(conteudo)) {
+      await atenderConsulta(remetente, nomeArquivo, conteudo);
+      return;
+    }
+
     const tipo = detectarTipoMovimento(conteudo);
     if (!tipo) {
+      // Contrato publicado em /contratos cujo envio ainda nao e importado
+      // (venda, compra e folha v2): a recusa diz isso, em vez de tratar o
+      // namespace como desconhecido.
+      const namespace = lerNamespaceRaiz(conteudo);
+      if (CONTRATOS.some((c) => c.namespace === namespace)) {
+        log(`recusado "${nomeArquivo}" de ${remetente}: ${namespace} ainda não é importado`);
+        responder(
+          remetente,
+          `"${nomeArquivo}" recusado: o Finanweb ainda não importa ${namespace}. Tente de novo mais tarde.`
+        );
+        return;
+      }
       log(`recusado "${nomeArquivo}" de ${remetente}: namespace desconhecido`);
       responder(
         remetente,
-        `"${nomeArquivo}" recusado: não é um movimento do Finanweb (namespace urn:finanweb:entrada:1.0 ou urn:finanweb:saida:1.0).`
+        `"${nomeArquivo}" recusado: não é um movimento nem uma consulta do Finanweb (namespace urn:finanweb:entrada:1.0, urn:finanweb:saida:1.0, urn:finanweb:inadimplencia:1.0 ou urn:finanweb:pendencias-fornecedor:1.0).`
       );
       return;
     }
