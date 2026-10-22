@@ -252,6 +252,33 @@ no banco são feitas em fila, na ordem em que as linhas chegaram.
 Custo: com o ouvinte rodando, o banco recebe uma consulta a cada 1,5 s (a
 fila), o que mantém o compute do Neon acordado enquanto ele estiver no ar.
 
+### Contratos com outros setores
+
+Os pontos de interoperabilidade do Financeiro levantados com a turma viraram
+contratos XML: um XSD em `lib/xml/schemas/` e um exemplo válido em
+`lib/xml/exemplos/` para cada mensagem. O catálogo fica em
+`lib/xml/contratos.ts`.
+
+| Mensagem | Setor | Financeiro | Schema |
+|---|---|---|---|
+| Venda (conta a receber) | Vendas | recebe | `entrada-v2.xsd` |
+| Compra (conta a pagar) | Compras | recebe | `saida-v2.xsd` |
+| Folha de pagamento | RH | recebe | `folha-v1.xsd` |
+| Consulta de inadimplência | Vendas | responde | `inadimplencia-v1.xsd` |
+| Pendências com fornecedor | Compras | responde | `pendencias-fornecedor-v1.xsd` |
+
+Por enquanto só os contratos estão publicados: o ouvinte ainda recusa esses
+namespaces, e responder às consultas e importar os envios v2 são os próximos
+passos. Os movimentos v1 continuam aceitos, como formato interno do Finanweb
+(exportar e reimportar). As convenções (origem + referência nos envios, `id`
+nas consultas, CPF/CNPJ como identificação) estão no topo de cada XSD.
+
+Os outros setores não têm conta no Finanweb, então tudo isso fica **fora do
+login**: a página `/contratos` (linkada na tela de login) lista as mensagens e
+as convenções, e os arquivos saem de `/api/contratos/<arquivo>`. O middleware
+deixa as duas passar; a rota só entrega o que está no catálogo e nenhuma das
+duas lê o banco.
+
 ### Cadastros (clientes e fornecedores)
 
 Cliente e fornecedor não são mais texto solto: são um cadastro (`Parceiro`,
@@ -302,6 +329,7 @@ simples) ou cadastrar uma nova manualmente.
 | Rota | Descrição | Acesso |
 |---|---|---|
 | `/login` | Login (username + senha) | público |
+| `/contratos` | Contratos XML com os outros setores: XSDs, exemplos e convenções | público |
 | `/` | Dashboard: saldo geral, top clientes, top fornecedores | autenticado |
 | `/integrar` | Upload de CSV (Entrada, Saída, Clientes ou Fornecedores) | autenticado |
 | `/socket` | Envia XML pelo servidor de chat e aprova os XMLs recebidos pelo ouvinte | autenticado |

@@ -34,6 +34,9 @@ export default async function LoginPage({ searchParams }: Props) {
         <a href="/solicitar-cadastro" className="link-button login-rodape">
           Solicitar cadastro
         </a>
+        <a href="/contratos" className="link-button login-rodape">
+          Contratos de integração (outros setores)
+        </a>
       </form>
     </div>
   );
