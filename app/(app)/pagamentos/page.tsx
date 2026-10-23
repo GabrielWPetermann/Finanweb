@@ -42,7 +42,10 @@ export default async function PagamentosPage({ searchParams }: Props) {
       },
     },
     include: { categoria: true, fornecedor: true },
-    orderBy: { dataPagamento: "desc" },
+    // O que foi lancado por ultimo primeiro: uma importacao com datas antigas
+    // (venda de agosto chegando em outubro) ficava no meio da lista. Nao ha
+    // coluna de criacao, mas o id (cuid) comeca pelo timestamp e ordena por ele.
+    orderBy: { id: "desc" },
     take: 200,
   });
 
