@@ -424,8 +424,10 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
           &quot;Folha de pagamento&quot;. O funcionário é cadastrado como fornecedor, pelo CPF.
         </li>
         <li>
-          <strong>Reenvio</strong>: o que já foi lançado com a mesma origem e referência é pulado, e a importação
-          diz quantos foram.
+          <strong>Reenvio</strong>: nada é lançado duas vezes. Um lançamento ainda <code>PENDENTE</code> passa a ter
+          o status e o vencimento do reenvio (<code>CONFIRMADO</code> quando o setor recebeu ou pagou,{" "}
+          <code>CANCELADO</code> quando cancelou); um já baixado não volta para pendente. A importação diz quantos
+          foram atualizados e quantos pulados.
         </li>
         <li>
           <strong>Pagamentos da folha</strong>: o RH pode perguntar quem já foi pago. Para marcar um salário como

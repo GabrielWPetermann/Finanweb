@@ -49,6 +49,9 @@ export function IntegrarForm() {
           {resultado.valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
           {resultado.qtdIgnorados ? ` - ${resultado.qtdIgnorados} linha(s) ignorada(s) (canceladas).` : ""}
           {resultado.qtdRepetidos ? ` - ${resultado.qtdRepetidos} já lançado(s) antes, pulado(s).` : ""}
+          {resultado.qtdAtualizados
+            ? ` - ${resultado.qtdAtualizados} já lançado(s) em aberto atualizado(s) (status ou vencimento).`
+            : ""}
         </p>
       )}
       {resultado.ok && resultado.valorTotal === undefined && (
