@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Financeiro -> Compras: a compra foi paga. Schema: aviso-pagamento-v1.xsd -->
+<avisoPagamento xmlns="urn:finanweb:aviso-pagamento:1.0" versao="1.0" id="cmvk7l4lh000sjy07e3z6w0ti-mgx2k1a">
+  <dataAviso>2026-11-04</dataAviso>
+  <origem>compras</origem>
+  <referencia>C-2026-000310</referencia>
+  <situacao>PAGO</situacao>
+  <favorecido documento="11444777000161">Distribuidora Central LTDA</favorecido>
+  <valor>2350.00</valor>
+  <dataPagamento>2026-11-04</dataPagamento>
+</avisoPagamento>

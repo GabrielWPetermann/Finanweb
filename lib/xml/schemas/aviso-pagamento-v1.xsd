@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Schema do aviso de pagamento: o Financeiro avisa, por conta propria, o
+  setor que enviou uma despesa (compra pela saida-v2.xsd, salario pela
+  folha-v1.xsd) quando ela e paga ou cancelada no Financeiro.
+
+  O aviso vai como arquivo, pelo servidor da turma, para o nome do setor no
+  servidor, que e a <origem> que ele mandou na compra ou na folha. So chega
+  se o setor estiver conectado: o servidor nao guarda mensagem. Quem perdeu
+  um aviso confere pelas consultas (pendencias-fornecedor-v1.xsd e
+  pagamentos-folha-v1.xsd). Nao ha resposta.
+
+  Identificacao do registro, igual ao que o setor mandou:
+    compra   <referencia> da despesa
+    folha    <referencia> da folha e <cpf> do funcionario
+
+  Situacao:
+    PAGO       o Financeiro pagou; <dataPagamento> diz quando
+    CANCELADO  o Financeiro cancelou o pagamento
+
+  Regras de validacao (numeracao dos demais schemas do Finanweb):
+    R1  documento do favorecido: 11 (CPF) ou 14 (CNPJ) digitos, opcional.
+        cpf do funcionario: 11 digitos.
+    R3  valores monetarios: decimal de ate 14 digitos, 2 casas, nao negativo.
+    R4  datas: xs:date (AAAA-MM-DD).
+    R7  origem: letras minusculas, digitos e hifen, comecando por letra.
+    R8  referencia: sem espacos, ate 60 caracteres.
+    R10 id do aviso: letras, digitos, ponto, sublinhado e hifen, ate 64.
+    R12 situacao: enumeracao fechada PAGO | CANCELADO.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:a="urn:finanweb:aviso-pagamento:1.0"
+           targetNamespace="urn:finanweb:aviso-pagamento:1.0"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <!-- ===================== Tipos simples ===================== -->
+
+  <!-- Texto obrigatorio. Nao pode ser vazio nem ter espaco no inicio/fim. -->
+  <xs:simpleType name="textoObrigatorio">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="120"/>
+      <xs:pattern value="\S(.*\S)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R1: CPF (11 digitos) ou CNPJ (14 digitos), so numeros. -->
+  <xs:simpleType name="documentoParceiro">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{11}|\d{14}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R1: CPF do funcionario, 11 digitos. -->
+  <xs:simpleType name="cpf">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{11}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R7: nome do setor no servidor da turma, o mesmo que ele mandou. -->
+  <xs:simpleType name="identificadorSistema">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[a-z][a-z0-9\-]{1,29}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R8: referencia do registro no sistema do setor. -->
+  <xs:simpleType name="referencia">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9][A-Za-z0-9._/\-]{0,59}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R10: id do aviso, gerado pelo Financeiro. -->
+  <xs:simpleType name="idAviso">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9][A-Za-z0-9._\-]{0,63}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R3: valor monetario = Decimal(14,2), nao negativo. -->
+  <xs:simpleType name="valorMonetario">
+    <xs:restriction base="xs:decimal">
+      <xs:totalDigits value="14"/>
+      <xs:fractionDigits value="2"/>
+      <xs:minInclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R12: situacao do pagamento (ver significado no topo). -->
+  <xs:simpleType name="situacao">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="PAGO"/>
+      <xs:enumeration value="CANCELADO"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ===================== Tipos complexos ===================== -->
+
+  <!-- Fornecedor ou funcionario: nome no conteudo, documento (R1) opcional. -->
+  <xs:complexType name="favorecido">
+    <xs:simpleContent>
+      <xs:extension base="a:textoObrigatorio">
+        <xs:attribute name="documento" type="a:documentoParceiro" use="optional"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- ===================== Elemento raiz ===================== -->
+
+  <xs:element name="avisoPagamento">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="dataAviso" type="xs:date"/>                       <!-- R4 -->
+        <xs:element name="origem" type="a:identificadorSistema"/>           <!-- R7 -->
+        <xs:element name="referencia" type="a:referencia"/>                 <!-- R8 -->
+        <!-- So nos salarios da folha. -->
+        <xs:element name="cpf" type="a:cpf" minOccurs="0"/>                 <!-- R1 -->
+        <xs:element name="situacao" type="a:situacao"/>                     <!-- R12 -->
+        <xs:element name="favorecido" type="a:favorecido"/>
+        <xs:element name="valor" type="a:valorMonetario"/>                  <!-- R3 -->
+        <!-- So quando PAGO. -->
+        <xs:element name="dataPagamento" type="xs:date" minOccurs="0"/>     <!-- R4 -->
+      </xs:sequence>
+      <xs:attribute name="versao" type="xs:string" use="required" fixed="1.0"/>
+      <xs:attribute name="id" type="a:idAviso" use="required"/>  <!-- R10 -->
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

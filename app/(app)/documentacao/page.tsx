@@ -430,6 +430,11 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
           foram atualizados e quantos pulados.
         </li>
         <li>
+          <strong>Aviso de pagamento</strong>: ao trocar para <code>CONFIRMADO</code> ou <code>CANCELADO</code> o
+          status de uma compra ou salário vindo de outro setor, o Finanweb avisa esse setor pelo servidor da
+          turma. O aviso aparece no <a href="/chat">Chat</a> e só chega se o setor estiver conectado.
+        </li>
+        <li>
           <strong>Pagamentos da folha</strong>: o RH pode perguntar quem já foi pago. Para marcar um salário como
           pago, edite o pagamento em <a href="/pagamentos">Pagamentos</a> e troque o status para{" "}
           <code>CONFIRMADO</code>.

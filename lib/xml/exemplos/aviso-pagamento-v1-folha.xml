@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Financeiro -> RH: o salario de um funcionario da folha foi pago. Schema: aviso-pagamento-v1.xsd -->
+<avisoPagamento xmlns="urn:finanweb:aviso-pagamento:1.0" versao="1.0" id="cmvk7l4ls000vjy07hel2qj8o-mgx2k3f">
+  <dataAviso>2026-11-05</dataAviso>
+  <origem>rh</origem>
+  <referencia>FOLHA-2026-10</referencia>
+  <cpf>52998224725</cpf>
+  <situacao>PAGO</situacao>
+  <favorecido documento="52998224725">Beatriz Conceição</favorecido>
+  <valor>4282.40</valor>
+  <dataPagamento>2026-11-05</dataPagamento>
+</avisoPagamento>

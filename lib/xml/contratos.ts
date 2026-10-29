@@ -14,8 +14,9 @@ export interface Contrato {
   mensagem: string;
   setor: string;
   // recebe: o setor envia e o Financeiro lanca. responde: o setor pergunta e
-  // o Financeiro devolve a resposta.
-  sentido: "recebe" | "responde";
+  // o Financeiro devolve a resposta. envia: o Financeiro manda por conta
+  // propria, sem pergunta.
+  sentido: "recebe" | "responde" | "envia";
   // O que o setor faz com esta mensagem, escrito para quem esta do outro lado.
   descricao: string;
   namespace: string;
@@ -25,6 +26,8 @@ export interface Contrato {
 }
 
 // Na ordem em que a pagina mostra: agrupados por setor.
+// O aviso de pagamento aparece uma vez por setor que recebe (Compras e RH),
+// com o mesmo schema.
 export const CONTRATOS: Contrato[] = [
   {
     mensagem: "Venda",
@@ -65,6 +68,16 @@ export const CONTRATOS: Contrato[] = [
     exemplos: ["pendencias-fornecedor-v1-consulta.xml", "pendencias-fornecedor-v1-resposta.xml"],
   },
   {
+    mensagem: "Aviso de pagamento",
+    setor: "Compras",
+    sentido: "envia",
+    descricao:
+      "Recebe um aviso quando o Financeiro paga ou cancela uma compra enviada por vocês, com a mesma referência.",
+    namespace: "urn:finanweb:aviso-pagamento:1.0",
+    schema: "aviso-pagamento-v1.xsd",
+    exemplos: ["aviso-pagamento-v1-compra.xml"],
+  },
+  {
     mensagem: "Folha de pagamento",
     setor: "RH",
     sentido: "recebe",
@@ -82,5 +95,15 @@ export const CONTRATOS: Contrato[] = [
     namespace: "urn:finanweb:pagamentos-folha:1.0",
     schema: "pagamentos-folha-v1.xsd",
     exemplos: ["pagamentos-folha-v1-consulta.xml", "pagamentos-folha-v1-resposta.xml"],
+  },
+  {
+    mensagem: "Aviso de pagamento",
+    setor: "RH",
+    sentido: "envia",
+    descricao:
+      "Recebe um aviso quando o Financeiro paga ou cancela o salário de um funcionário da folha, com a referência da folha e o CPF.",
+    namespace: "urn:finanweb:aviso-pagamento:1.0",
+    schema: "aviso-pagamento-v1.xsd",
+    exemplos: ["aviso-pagamento-v1-folha.xml"],
   },
 ];
