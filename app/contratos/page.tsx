@@ -106,7 +106,9 @@ export default function ContratosPage() {
         </li>
         <li>
           <strong>Referência</strong>: o identificador do registro no sistema de vocês. O par origem + referência
-          identifica o lançamento, então reenviar o mesmo arquivo não duplica nada.
+          identifica o lançamento, então reenviar o mesmo arquivo não duplica nada. Para avisar que uma venda foi
+          recebida, uma compra foi paga ou um dos dois foi cancelado, reenvie o registro com a mesma referência e o
+          status novo (<code>CONFIRMADO</code> ou <code>CANCELADO</code>): o lançamento em aberto é atualizado.
         </li>
         <li>
           <strong>Status nos envios</strong>: <code>PENDENTE</code> = ainda não recebido ou pago,{" "}

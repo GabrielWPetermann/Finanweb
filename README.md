@@ -295,11 +295,18 @@ Como os envios são gravados:
   líquido, categoria "Folha de pagamento", `PENDENTE`, com `dataPagamento` e
   `vencimento` na data de pagamento da folha. O funcionário vira fornecedor,
   pelo CPF, e a referência é `<referência da folha>/<cpf>`.
-- **Reenvio**: `origem` + `referencia` são únicos no banco. O que já foi
-  lançado é pulado e o resto do arquivo entra; a tela diz quantos foram
-  pulados. Se nada for novo, a importação é recusada e o arquivo fica na
-  caixa para ser descartado.
-- `CANCELADO` é ignorado. Fora do XSD, o parser confere `valorTotal =
+- **Reenvio**: `origem` + `referencia` são únicos no banco, então nada é
+  lançado duas vezes. Um lançamento que ainda está `PENDENTE` passa a ter o
+  status e o vencimento do reenvio: é assim que o setor avisa que recebeu ou
+  pagou (`CONFIRMADO`), que cancelou (`CANCELADO`, que aqui também conta) ou
+  que mudou o prazo. Lançamento já baixado no Financeiro (`CONFIRMADO` ou
+  `CANCELADO`) não volta para `PENDENTE`; valor, cliente e o resto não mudam.
+  A tela diz quantos foram atualizados e quantos pulados. Reenvio que só
+  atualiza não aparece no Histórico, que conta o que entrou; se não houver
+  nada novo nem mudança, a importação é recusada e o arquivo fica na caixa
+  para ser descartado. A folha não tem status, então reenviá-la não muda
+  nada.
+- `CANCELADO` de algo que nunca foi lançado é ignorado. Fora do XSD, o parser confere `valorTotal =
   subtotal - desconto + frete`, vencimento a partir do pedido ou da emissão,
   e na folha o líquido de cada funcionário e o totalizador.
 

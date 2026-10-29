@@ -29,10 +29,12 @@ export interface ResultadoImportacao {
   qtdRegistros?: number;
   qtdIgnorados?: number;
   // Envios dos setores: registros que ja tinham sido lancados (mesma origem +
-  // referencia) e foram pulados.
+  // referencia) e foram pulados sem mudanca.
   qtdRepetidos?: number;
   valorTotal?: number;
   qtdCriados?: number;
+  // Cadastro: parceiros atualizados. Envios dos setores: lancamentos em aberto
+  // que mudaram de status ou vencimento num reenvio.
   qtdAtualizados?: number;
 }
 
@@ -265,14 +267,23 @@ function parseDataIso(valor: string): Date {
 interface LancamentoEnvio {
   referencia: string;
   valor: number;
-  gravar: (tx: Banco, importacaoId: string) => Promise<void>;
+  // Status e vencimento que o setor mandou, comparados com o lancamento ja
+  // gravado num reenvio. A folha nao manda status: fica sem.
+  status?: string;
+  vencimento?: string; // AAAA-MM-DD
+  // Ausente nos CANCELADO: nunca viram lancamento novo, so cancelam um que ja
+  // esteja em aberto.
+  gravar?: (tx: Banco, importacaoId: string) => Promise<void>;
 }
 
 interface Envio {
   tipo: "ENTRADA" | "SAIDA";
   cabecalho: EnvioCabecalho;
   lancamentos: LancamentoEnvio[];
-  ignorados: number;
+}
+
+function cancelamentos(referencias: string[]): LancamentoEnvio[] {
+  return referencias.map((referencia) => ({ referencia, valor: 0, status: "CANCELADO" }));
 }
 
 type Leitura = Envio | { erro: string };
@@ -294,33 +305,37 @@ function lerVenda(conteudo: string): Leitura {
   return {
     tipo: "ENTRADA",
     cabecalho: resultado.cabecalho,
-    ignorados: resultado.ignorados,
-    lancamentos: resultado.pedidos.map((pedido) => ({
-      referencia: pedido.referencia,
-      valor: pedido.valorTotal,
-      gravar: async (tx, importacaoId) => {
-        const categoria = await categoriaPorNome(tx, pedido.categoria, "ENTRADA");
-        const cliente = await resolverParceiroPorDocumento(tx, pedido.cliente, pedido.documento, "CLIENTE");
-        await tx.pedidoAgrupado.create({
-          data: {
-            importacaoId,
-            clienteId: cliente.id,
-            categoriaId: categoria.id,
-            subtotal: pedido.subtotal,
-            descontoPercentual: pedido.descontoPercentual,
-            descontoValor: pedido.descontoValor,
-            frete: pedido.frete,
-            valorTotal: pedido.valorTotal,
-            formaPagamento: pedido.formaPagamento,
-            dataPedido: parseDataIso(pedido.dataPedido),
-            vencimento: parseDataIso(pedido.vencimento),
-            status: pedido.status,
-            origem,
-            referencia: pedido.referencia,
-          },
-        });
-      },
-    })),
+    lancamentos: [
+      ...resultado.pedidos.map((pedido): LancamentoEnvio => ({
+        referencia: pedido.referencia,
+        valor: pedido.valorTotal,
+        status: pedido.status,
+        vencimento: pedido.vencimento,
+        gravar: async (tx, importacaoId) => {
+          const categoria = await categoriaPorNome(tx, pedido.categoria, "ENTRADA");
+          const cliente = await resolverParceiroPorDocumento(tx, pedido.cliente, pedido.documento, "CLIENTE");
+          await tx.pedidoAgrupado.create({
+            data: {
+              importacaoId,
+              clienteId: cliente.id,
+              categoriaId: categoria.id,
+              subtotal: pedido.subtotal,
+              descontoPercentual: pedido.descontoPercentual,
+              descontoValor: pedido.descontoValor,
+              frete: pedido.frete,
+              valorTotal: pedido.valorTotal,
+              formaPagamento: pedido.formaPagamento,
+              dataPedido: parseDataIso(pedido.dataPedido),
+              vencimento: parseDataIso(pedido.vencimento),
+              status: pedido.status,
+              origem,
+              referencia: pedido.referencia,
+            },
+          });
+        },
+      })),
+      ...cancelamentos(resultado.cancelados),
+    ],
   };
 }
 
@@ -333,37 +348,41 @@ function lerCompra(conteudo: string): Leitura {
   return {
     tipo: "SAIDA",
     cabecalho: resultado.cabecalho,
-    ignorados: resultado.ignorados,
-    lancamentos: resultado.despesas.map((despesa) => ({
-      referencia: despesa.referencia,
-      valor: despesa.valor,
-      gravar: async (tx, importacaoId) => {
-        const categoria = await categoriaPorNome(tx, despesa.categoria, "SAIDA");
-        const fornecedor = await resolverParceiroPorDocumento(
-          tx,
-          despesa.fornecedor,
-          despesa.documento,
-          "FORNECEDOR"
-        );
-        await tx.despesaAgrupada.create({
-          data: {
-            importacaoId,
-            fornecedorId: fornecedor.id,
-            categoriaId: categoria.id,
-            valor: despesa.valor,
-            formaPagamento: despesa.formaPagamento,
-            // Relatorios e exportacao filtram as Saidas por dataPagamento:
-            // com a emissao, a compra aparece no periodo em que foi feita. O
-            // prazo fica no vencimento.
-            dataPagamento: parseDataIso(despesa.dataEmissao),
-            vencimento: parseDataIso(despesa.vencimento),
-            status: despesa.status,
-            origem,
-            referencia: despesa.referencia,
-          },
-        });
-      },
-    })),
+    lancamentos: [
+      ...resultado.despesas.map((despesa): LancamentoEnvio => ({
+        referencia: despesa.referencia,
+        valor: despesa.valor,
+        status: despesa.status,
+        vencimento: despesa.vencimento,
+        gravar: async (tx, importacaoId) => {
+          const categoria = await categoriaPorNome(tx, despesa.categoria, "SAIDA");
+          const fornecedor = await resolverParceiroPorDocumento(
+            tx,
+            despesa.fornecedor,
+            despesa.documento,
+            "FORNECEDOR"
+          );
+          await tx.despesaAgrupada.create({
+            data: {
+              importacaoId,
+              fornecedorId: fornecedor.id,
+              categoriaId: categoria.id,
+              valor: despesa.valor,
+              formaPagamento: despesa.formaPagamento,
+              // Relatorios e exportacao filtram as Saidas por dataPagamento:
+              // com a emissao, a compra aparece no periodo em que foi feita. O
+              // prazo fica no vencimento.
+              dataPagamento: parseDataIso(despesa.dataEmissao),
+              vencimento: parseDataIso(despesa.vencimento),
+              status: despesa.status,
+              origem,
+              referencia: despesa.referencia,
+            },
+          });
+        },
+      })),
+      ...cancelamentos(resultado.cancelados),
+    ],
   };
 }
 
@@ -377,7 +396,6 @@ function lerFolha(conteudo: string): Leitura {
   return {
     tipo: "SAIDA",
     cabecalho: resultado.cabecalho,
-    ignorados: 0,
     // Uma despesa por funcionario, com o liquido. A referencia leva o CPF
     // para a chave origem + referencia ser unica por funcionario.
     lancamentos: resultado.funcionarios.map((funcionario) => ({
@@ -428,53 +446,90 @@ async function importarEnvioSetor(
   const envio = ler(conteudo);
   if ("erro" in envio) return { ok: false, erro: envio.erro };
 
-  // Reenvio nao duplica: o que ja foi lancado com a mesma origem + referencia
-  // e pulado, e o resto do arquivo entra.
+  // Reenvio nao duplica. O que ja foi lancado com a mesma origem +
+  // referencia so muda enquanto estiver em aberto (PENDENTE): passa a ter o
+  // status e o vencimento do arquivo, para o setor poder avisar que recebeu ou
+  // pagou (CONFIRMADO), que desistiu (CANCELADO) ou que renegociou o prazo.
+  // Lancamento ja baixado no Financeiro nao volta para PENDENTE.
   const { origem } = envio.cabecalho;
   const consulta = {
     where: { origem, referencia: { in: envio.lancamentos.map((l) => l.referencia) } },
-    select: { referencia: true },
+    select: { id: true, referencia: true, status: true, vencimento: true },
   };
   const jaLancados =
     envio.tipo === "ENTRADA"
       ? await prisma.pedidoAgrupado.findMany(consulta)
       : await prisma.despesaAgrupada.findMany(consulta);
-  const repetidas = new Set(jaLancados.map((r) => r.referencia));
-  const novos = envio.lancamentos.filter((l) => !repetidas.has(l.referencia));
+  const porReferencia = new Map(jaLancados.map((r) => [r.referencia, r]));
 
-  if (novos.length === 0) {
+  const novos: LancamentoEnvio[] = [];
+  const atualizacoes: { id: string; data: { status: string; vencimento?: Date } }[] = [];
+  let qtdRepetidos = 0;
+  let qtdIgnorados = 0;
+  for (const lancamento of envio.lancamentos) {
+    const existente = porReferencia.get(lancamento.referencia);
+    if (!existente) {
+      if (lancamento.gravar) novos.push(lancamento);
+      else qtdIgnorados++; // CANCELADO de algo que nunca foi lancado
+      continue;
+    }
+
+    const emAberto = existente.status.trim().toUpperCase() === "PENDENTE";
+    const status = lancamento.status ?? existente.status;
+    const vencimento = lancamento.vencimento ? parseDataIso(lancamento.vencimento) : undefined;
+    const mudouStatus = status.toUpperCase() !== existente.status.trim().toUpperCase();
+    const mudouVencimento = vencimento !== undefined && vencimento.getTime() !== existente.vencimento?.getTime();
+    if (emAberto && (mudouStatus || mudouVencimento)) {
+      atualizacoes.push({ id: existente.id, data: { status, ...(mudouVencimento ? { vencimento } : {}) } });
+    } else {
+      qtdRepetidos++;
+    }
+  }
+
+  if (novos.length === 0 && atualizacoes.length === 0) {
     return {
       ok: false,
       erro:
-        envio.lancamentos.length === 0
+        qtdRepetidos === 0
           ? "Nenhum registro para lançar: todos estão CANCELADO."
-          : `Nada novo: os ${repetidas.size} registro(s) já tinham sido lançados antes (mesma origem "${origem}" e referência).`,
+          : `Nada novo: os ${qtdRepetidos} registro(s) já tinham sido lançados antes (mesma origem "${origem}" e referência), sem mudança de status ou vencimento.`,
     };
   }
 
   const valorTotal = Math.round(novos.reduce((soma, l) => soma + l.valor * 100, 0)) / 100;
 
   try {
+    // So atualizacao, sem lancamento novo: nao vira importacao no Historico,
+    // que conta o que entrou.
     const pasta = envio.tipo === "ENTRADA" ? "entradas" : "saidas";
-    const blob = await put(`${pasta}/${Date.now()}-${nomeArquivo}`, conteudo, {
-      access: "private",
-      contentType: "application/xml",
-    });
+    const blob =
+      novos.length > 0
+        ? await put(`${pasta}/${Date.now()}-${nomeArquivo}`, conteudo, {
+            access: "private",
+            contentType: "application/xml",
+          })
+        : null;
 
     await prisma.$transaction(async (tx) => {
-      const importacao = await tx.importacao.create({
-        data: {
-          tipo: envio.tipo,
-          nomeArquivo,
-          blobUrl: blob.url,
-          usuarioId,
-          dataArquivoOriginal: parseDataIso(envio.cabecalho.dataArquivo),
-          qtdRegistros: novos.length,
-          valorTotal,
-        },
-      });
-      for (const lancamento of novos) {
-        await lancamento.gravar(tx, importacao.id);
+      if (blob) {
+        const importacao = await tx.importacao.create({
+          data: {
+            tipo: envio.tipo,
+            nomeArquivo,
+            blobUrl: blob.url,
+            usuarioId,
+            dataArquivoOriginal: parseDataIso(envio.cabecalho.dataArquivo),
+            qtdRegistros: novos.length,
+            valorTotal,
+          },
+        });
+        for (const lancamento of novos) {
+          await lancamento.gravar?.(tx, importacao.id);
+        }
+      }
+      for (const { id, data } of atualizacoes) {
+        if (envio.tipo === "ENTRADA") await tx.pedidoAgrupado.update({ where: { id }, data });
+        else await tx.despesaAgrupada.update({ where: { id }, data });
       }
     });
   } catch (erro) {
@@ -493,8 +548,9 @@ async function importarEnvioSetor(
   return {
     ok: true,
     qtdRegistros: novos.length,
-    qtdIgnorados: envio.ignorados,
-    qtdRepetidos: repetidas.size,
+    qtdIgnorados,
+    qtdRepetidos,
+    qtdAtualizados: atualizacoes.length,
     valorTotal,
   };
 }

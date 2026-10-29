@@ -25,7 +25,9 @@ export interface VendaPedido {
 export interface VendaParseResult {
   cabecalho: EnvioCabecalho | null;
   pedidos: VendaPedido[];
-  ignorados: number; // CANCELADO
+  // Referencias com status CANCELADO: nao viram lancamento, mas cancelam um
+  // que ja tinha sido lancado em aberto (ver importarEnvioSetor).
+  cancelados: string[];
   erros: string[];
 }
 
@@ -34,19 +36,19 @@ const parser = criarParser("pedido");
 export function parseEntradaV2Xml(conteudo: string): VendaParseResult {
   const pedidos: VendaPedido[] = [];
   const erros: string[] = [];
-  let ignorados = 0;
+  const cancelados: string[] = [];
 
   let documento: No;
   try {
     documento = parser.parse(conteudo) as No;
   } catch {
-    return { cabecalho: null, pedidos, ignorados, erros: ["Arquivo XML mal formado."] };
+    return { cabecalho: null, pedidos, cancelados, erros: ["Arquivo XML mal formado."] };
   }
 
   const movimento = documento.movimento as No | undefined;
   const cabecalho = lerCabecalho(movimento?.cabecalho);
   if (!movimento || !cabecalho) {
-    return { cabecalho, pedidos, ignorados, erros: ["Elementos <movimento> e <cabecalho> são obrigatórios."] };
+    return { cabecalho, pedidos, cancelados, erros: ["Elementos <movimento> e <cabecalho> são obrigatórios."] };
   }
 
   const lista = ((movimento.pedidos as No | undefined)?.pedido ?? []) as No[];
@@ -54,7 +56,7 @@ export function parseEntradaV2Xml(conteudo: string): VendaParseResult {
     const referencia = atributo(pedido, "referencia");
     const status = atributo(pedido, "status");
     if (status === "CANCELADO") {
-      ignorados++;
+      cancelados.push(referencia);
       continue;
     }
 
@@ -92,5 +94,5 @@ export function parseEntradaV2Xml(conteudo: string): VendaParseResult {
     });
   }
 
-  return { cabecalho, pedidos, ignorados, erros };
+  return { cabecalho, pedidos, cancelados, erros };
 }
