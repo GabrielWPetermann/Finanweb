@@ -72,7 +72,7 @@ function texto(no: unknown): string {
 }
 
 /** AAAA-MM-DD do dia no fuso de quem roda o ouvinte, e nao em UTC. */
-function dataLocalIso(data: Date): string {
+export function dataLocalIso(data: Date): string {
   const mes = String(data.getMonth() + 1).padStart(2, "0");
   const dia = String(data.getDate()).padStart(2, "0");
   return `${data.getFullYear()}-${mes}-${dia}`;
@@ -82,11 +82,11 @@ function diasEntre(inicioIso: string, fimIso: string): number {
   return Math.round((Date.parse(fimIso) - Date.parse(inicioIso)) / DIA_MS);
 }
 
-function valor(numero: Prisma.Decimal | number): string {
+export function valor(numero: Prisma.Decimal | number): string {
   return Number(numero).toFixed(2);
 }
 
-function textoContrato(valorTexto: string, padrao: string): string {
+export function textoContrato(valorTexto: string, padrao: string): string {
   const limpo = valorTexto.trim().slice(0, MAX_TEXTO).trim();
   return limpo || padrao;
 }
@@ -108,7 +108,7 @@ function atributoReferencia(referencia: string | null): string {
 }
 
 /** Documento gravado -> atributo do XSD (so digitos, 11 ou 14), ou nada. */
-function atributoDocumento(documento: string | null): string {
+export function atributoDocumento(documento: string | null): string {
   const digitos = (documento ?? "").replace(/\D/g, "");
   return digitos.length === 11 || digitos.length === 14 ? ` documento="${digitos}"` : "";
 }
@@ -225,7 +225,7 @@ async function responderPendencias(db: Banco, consulta: No): Promise<Resultado> 
 
 // O status da despesa e texto livre (editavel em Pagamentos). CONFIRMADO e o
 // "pago" dos envios v2; PAGO tambem vale, para quem digitar assim na tela.
-function situacaoPagamento(status: string): "PAGO" | "PENDENTE" | "CANCELADO" {
+export function situacaoPagamento(status: string): "PAGO" | "PENDENTE" | "CANCELADO" {
   const normalizado = status.trim().toUpperCase();
   if (normalizado === "CONFIRMADO" || normalizado === "PAGO") return "PAGO";
   if (normalizado === "CANCELADO") return "CANCELADO";
@@ -234,7 +234,7 @@ function situacaoPagamento(status: string): "PAGO" | "PENDENTE" | "CANCELADO" {
 
 // Cada funcionario da folha foi gravado com referencia "<folha>/<cpf>" (ver
 // lerFolha em lib/importacao.ts). O CPF nao tem barra, entao a ultima separa.
-const REGEX_REFERENCIA_FOLHA = /^(.+)\/(\d{11})$/;
+export const REGEX_REFERENCIA_FOLHA = /^(.+)\/(\d{11})$/;
 
 async function responderPagamentosFolha(db: Banco, consulta: No): Promise<Resultado> {
   const origem = texto(consulta.origem);

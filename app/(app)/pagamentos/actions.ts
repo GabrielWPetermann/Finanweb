@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { getUsuarioAtual } from "@/lib/auth";
 import { paraNumero, paraDataInput } from "@/lib/forms";
 import { resolverParceiroFormulario } from "@/lib/parceiros";
+import { avisarPagamento } from "@/lib/socket/avisos";
 
 async function resolverCategoriaSaida(nome: string) {
   return prisma.categoria.upsert({
@@ -70,7 +71,11 @@ export async function editarPagamentoAction(formData: FormData) {
 
   const valor = paraNumero(formData.get("valor"));
 
-  await prisma.$transaction(async (tx) => {
+  // O status de antes decide se a edicao baixou uma despesa vinda de outro
+  // setor, que entao recebe o aviso de pagamento.
+  const anterior = await prisma.despesaAgrupada.findUnique({ where: { id }, select: { status: true } });
+
+  const atualizada = await prisma.$transaction(async (tx) => {
     const fornecedorId = await resolverParceiroFormulario(
       tx,
       formData,
@@ -78,11 +83,11 @@ export async function editarPagamentoAction(formData: FormData) {
       "fornecedorNovoNome",
       "FORNECEDOR"
     );
-    if (!fornecedorId) return;
+    if (!fornecedorId) return null;
 
     const categoria = await resolverCategoriaSaida(categoriaNome);
 
-    await tx.despesaAgrupada.update({
+    return tx.despesaAgrupada.update({
       where: { id },
       data: {
         fornecedorId,
@@ -92,8 +97,11 @@ export async function editarPagamentoAction(formData: FormData) {
         dataPagamento: paraDataInput(dataPagamento),
         status,
       },
+      include: { fornecedor: { select: { nome: true, documento: true } } },
     });
   });
+
+  if (anterior && atualizada) await avisarPagamento(anterior.status, atualizada, usuario.username);
 
   revalidatePath("/pagamentos");
   revalidatePath("/");

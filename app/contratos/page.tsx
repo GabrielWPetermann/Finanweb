@@ -5,7 +5,7 @@
 
 import type { Metadata } from "next";
 import { SOCKET_HOST, SOCKET_NOME, SOCKET_PORTA } from "@/lib/socket/config";
-import { CONTRATOS } from "@/lib/xml/contratos";
+import { CONTRATOS, type Contrato } from "@/lib/xml/contratos";
 
 export const metadata: Metadata = {
   title: "Contratos de integração · Finanweb",
@@ -19,6 +19,12 @@ const OBSERVACOES: Record<string, string> = {
 };
 
 const SETORES = [...new Set(CONTRATOS.map((c) => c.setor))];
+
+const TIPO: Record<Contrato["sentido"], string> = {
+  recebe: "envio",
+  responde: "consulta",
+  envia: "aviso do Financeiro",
+};
 
 function rotuloExemplo(arquivo: string): string {
   if (arquivo.endsWith("-consulta.xml")) return "exemplo de consulta";
@@ -44,7 +50,7 @@ export default function ContratosPage() {
             {CONTRATOS.filter((c) => c.setor === setor).map((c) => (
               <div key={c.namespace}>
                 <p>
-                  <strong>{c.mensagem}</strong> ({c.sentido === "recebe" ? "envio" : "consulta"}). {c.descricao}
+                  <strong>{c.mensagem}</strong> ({TIPO[c.sentido]}). {c.descricao}
                 </p>
                 <div className="linha-botoes">
                   <a href={`/api/contratos/${c.schema}`} className="botao-download">
@@ -125,6 +131,12 @@ export default function ContratosPage() {
           consulta.
         </li>
         <li>
+          <strong>Aviso de pagamento</strong>: quando o Financeiro paga ou cancela uma compra ou um salário que
+          vocês mandaram, ele envia o aviso como arquivo para o nome de vocês no servidor, que é a{" "}
+          <code>origem</code> do envio. Só chega se estiverem conectados; quem perdeu confere pela consulta de
+          pendências ou de pagamentos da folha. Não precisa responder.
+        </li>
+        <li>
           <strong>Pagamentos da folha</strong>: a <code>origem</code> da consulta tem que ser a mesma da folha
           enviada, e a <code>referencia</code> é a da folha. Lista vazia quer dizer que a folha ainda não foi lançada
           no Financeiro.
@@ -158,10 +170,10 @@ export default function ContratosPage() {
         </thead>
         <tbody>
           {CONTRATOS.map((c) => (
-            <tr key={c.namespace}>
+            <tr key={`${c.setor}-${c.namespace}`}>
               <td>{c.mensagem}</td>
               <td>{c.setor}</td>
-              <td>{c.sentido === "recebe" ? "envio" : "consulta"}</td>
+              <td>{TIPO[c.sentido]}</td>
               <td>
                 <code>{c.namespace}</code>
               </td>

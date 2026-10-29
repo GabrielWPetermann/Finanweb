@@ -131,7 +131,7 @@ function conectar() {
       // (hoje nenhum; serve para a proxima versao): a recusa diz isso, em vez
       // de tratar o namespace como desconhecido.
       const namespace = lerNamespaceRaiz(conteudo);
-      if (CONTRATOS.some((c) => c.namespace === namespace)) {
+      if (CONTRATOS.some((c) => c.namespace === namespace && c.sentido !== "envia")) {
         log(`recusado "${nomeArquivo}" de ${remetente}: ${namespace} ainda não é importado`);
         responder(
           remetente,

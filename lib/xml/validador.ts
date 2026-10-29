@@ -18,7 +18,8 @@ export type SchemaXml =
   | "folha-v1.xsd"
   | "inadimplencia-v1.xsd"
   | "pendencias-fornecedor-v1.xsd"
-  | "pagamentos-folha-v1.xsd";
+  | "pagamentos-folha-v1.xsd"
+  | "aviso-pagamento-v1.xsd";
 
 export const SCHEMA_POR_TIPO: Record<"ENTRADA" | "SAIDA", SchemaXml> = {
   ENTRADA: "entrada-v1.xsd",

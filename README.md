@@ -226,6 +226,16 @@ envios v2; lançamento sem ele (manual, CSV, XML v1) vence 30 dias depois do
 pedido, na conta a receber, e na `dataPagamento`, na despesa. Cada título e
 pendência vindo de outro setor sai com a `referencia` dele.
 
+**Aviso de pagamento**: quando alguém edita em `/pagamentos` uma despesa que
+veio de outro setor (compra ou salário da folha, ou seja, com `origem`) e o
+status passa de pendente para pago (`CONFIRMADO`/`PAGO`) ou `CANCELADO`, o
+Finanweb manda um `aviso-pagamento-v1` para aquele setor, pelo nome dele no
+servidor (a `origem`). Como a tela roda na Vercel, o aviso entra na mesma fila
+de arquivos do chat e o ouvinte manda; ele aparece no `/chat`. Setor
+desconectado perde o aviso, mas as consultas continuam valendo. Lançamento
+manual, importação v1 e baixa que veio do próprio setor num reenvio não
+geram aviso. A lógica fica em `lib/socket/avisos.ts`.
+
 Na consulta de pagamentos da folha, o RH só vê as folhas que mandou: a busca
 é pela `origem` da consulta e pela referência da folha (cada funcionário foi
 gravado como `<folha>/<cpf>`). O status da despesa é texto livre em
@@ -296,6 +306,7 @@ contratos XML: um XSD em `lib/xml/schemas/` e um exemplo válido em
 | Consulta de inadimplência | Vendas | responde | `inadimplencia-v1.xsd` |
 | Pendências com fornecedor | Compras | responde | `pendencias-fornecedor-v1.xsd` |
 | Pagamentos da folha | RH | responde | `pagamentos-folha-v1.xsd` |
+| Aviso de pagamento | Compras e RH | envia | `aviso-pagamento-v1.xsd` |
 
 As consultas são respondidas na hora (ver "Socket"). Os envios vão para a
 caixa de entrada de `/socket` como os outros XMLs, e também podem ser
