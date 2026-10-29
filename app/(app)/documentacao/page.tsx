@@ -374,7 +374,7 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
         </li>
       </ol>
       <p>
-        Consultas de inadimplência e de pendências com fornecedor (ver{" "}
+        Consultas de inadimplência, de pendências com fornecedor e de pagamentos da folha (ver{" "}
         <a href="#contratos">Contratos com outros setores</a>) não passam por aprovação: só leem o banco, e a
         resposta volta na hora, como arquivo XML, para quem perguntou. Elas aparecem no <a href="/chat">Chat</a>.
       </p>
@@ -426,6 +426,11 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
         <li>
           <strong>Reenvio</strong>: o que já foi lançado com a mesma origem e referência é pulado, e a importação
           diz quantos foram.
+        </li>
+        <li>
+          <strong>Pagamentos da folha</strong>: o RH pode perguntar quem já foi pago. Para marcar um salário como
+          pago, edite o pagamento em <a href="/pagamentos">Pagamentos</a> e troque o status para{" "}
+          <code>CONFIRMADO</code>.
         </li>
       </ul>
 

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Financeiro -> RH: resposta com o mesmo id da consulta. Schema: pagamentos-folha-v1.xsd -->
+<respostaPagamentosFolha xmlns="urn:finanweb:pagamentos-folha:1.0" versao="1.0" id="rh-000012">
+  <dataConsulta>2026-11-06</dataConsulta>
+  <pagamentos>
+    <pagamento folha="FOLHA-2026-10" cpf="52998224725">
+      <nome>Beatriz Conceição</nome>
+      <valor>4282.40</valor>
+      <situacao>PAGO</situacao>
+      <dataPrevista>2026-11-05</dataPrevista>
+      <dataPagamento>2026-11-05</dataPagamento>
+    </pagamento>
+    <pagamento folha="FOLHA-2026-10" cpf="98765432100">
+      <nome>Carlos Lima</nome>
+      <valor>3087.65</valor>
+      <situacao>PENDENTE</situacao>
+      <dataPrevista>2026-11-05</dataPrevista>
+    </pagamento>
+  </pagamentos>
+  <totalizador>
+    <qtdPagos>1</qtdPagos>
+    <valorPago>4282.40</valorPago>
+    <qtdPendentes>1</qtdPendentes>
+    <valorPendente>3087.65</valorPendente>
+  </totalizador>
+</respostaPagamentosFolha>

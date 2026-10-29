@@ -73,4 +73,14 @@ export const CONTRATOS: Contrato[] = [
     schema: "folha-v1.xsd",
     exemplos: ["folha-v1.xml"],
   },
+  {
+    mensagem: "Pagamentos da folha",
+    setor: "RH",
+    sentido: "responde",
+    descricao:
+      "Pode perguntar quais funcionários das folhas enviadas já foram pagos. A resposta traz cada um como pago, pendente ou cancelado, com a data.",
+    namespace: "urn:finanweb:pagamentos-folha:1.0",
+    schema: "pagamentos-folha-v1.xsd",
+    exemplos: ["pagamentos-folha-v1-consulta.xml", "pagamentos-folha-v1-resposta.xml"],
+  },
 ];

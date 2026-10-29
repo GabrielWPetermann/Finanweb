@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Schema da consulta de pagamentos da folha: o RH pergunta ao Financeiro
+  quais funcionarios ja foram pagos, das folhas que ele mesmo enviou
+  (folha-v1.xsd).
+
+  Mesmo modelo das outras consultas: um schema, dois elementos raiz
+  (<consultaPagamentosFolha> e <respostaPagamentosFolha>), e o id da consulta
+  volta na resposta.
+
+  A <origem> da consulta e a mesma da folha enviada: e por ela, junto com a
+  referencia da folha, que o Financeiro acha os pagamentos. Sem <referencia>,
+  a resposta traz todas as folhas daquela origem; com <cpf>, so aquele
+  funcionario. Lista vazia = folha ainda nao lancada no Financeiro (pode estar
+  aguardando aprovacao).
+
+  Situacao de cada funcionario:
+    PAGO       o Financeiro ja pagou; <dataPagamento> diz quando
+    PENDENTE   ainda nao pago; <dataPrevista> e a data de pagamento da folha
+    CANCELADO  o Financeiro cancelou o pagamento
+
+  Regras de validacao (numeracao dos demais schemas do Finanweb):
+    R1  cpf do funcionario: 11 digitos.
+    R3  valores monetarios: decimal de ate 14 digitos, 2 casas, nao negativo.
+    R4  datas: xs:date (AAAA-MM-DD).
+    R7  origem: letras minusculas, digitos e hifen, comecando por letra.
+    R8  referencia da folha: sem espacos, ate 60 caracteres.
+    R10 id da consulta: letras, digitos, ponto, sublinhado e hifen, ate 64.
+    R12 situacao: enumeracao fechada PAGO | PENDENTE | CANCELADO.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:g="urn:finanweb:pagamentos-folha:1.0"
+           targetNamespace="urn:finanweb:pagamentos-folha:1.0"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <!-- ===================== Tipos simples ===================== -->
+
+  <!-- Texto obrigatorio. Nao pode ser vazio nem ter espaco no inicio/fim. -->
+  <xs:simpleType name="textoObrigatorio">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="120"/>
+      <xs:pattern value="\S(.*\S)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R1: CPF do funcionario, 11 digitos. -->
+  <xs:simpleType name="cpf">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{11}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R7: nome do sistema que pergunta, o mesmo do servidor da turma. -->
+  <xs:simpleType name="identificadorSistema">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[a-z][a-z0-9\-]{1,29}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R8: referencia da folha, a mesma do atributo referencia de <folha>. -->
+  <xs:simpleType name="referencia">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9][A-Za-z0-9._/\-]{0,59}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R10: id da consulta, escolhido por quem pergunta. -->
+  <xs:simpleType name="idConsulta">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9][A-Za-z0-9._\-]{0,63}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R3: valor monetario = Decimal(14,2), nao negativo. -->
+  <xs:simpleType name="valorMonetario">
+    <xs:restriction base="xs:decimal">
+      <xs:totalDigits value="14"/>
+      <xs:fractionDigits value="2"/>
+      <xs:minInclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R12: situacao do pagamento (ver significado no topo). -->
+  <xs:simpleType name="situacao">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="PAGO"/>
+      <xs:enumeration value="PENDENTE"/>
+      <xs:enumeration value="CANCELADO"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Motivo de uma consulta nao respondida, em uma linha. -->
+  <xs:simpleType name="mensagemErro">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="500"/>
+      <xs:pattern value="\S(.*\S)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ===================== Tipos complexos ===================== -->
+
+  <xs:complexType name="pagamento">
+    <xs:sequence>
+      <xs:element name="nome" type="g:textoObrigatorio"/>
+      <xs:element name="valor" type="g:valorMonetario"/>                   <!-- R3 -->
+      <xs:element name="situacao" type="g:situacao"/>                      <!-- R12 -->
+      <xs:element name="dataPrevista" type="xs:date"/>                     <!-- R4 -->
+      <!-- So quando PAGO. -->
+      <xs:element name="dataPagamento" type="xs:date" minOccurs="0"/>      <!-- R4 -->
+    </xs:sequence>
+    <xs:attribute name="folha" type="g:referencia" use="required"/>       <!-- R8 -->
+    <xs:attribute name="cpf" type="g:cpf" use="required"/>                <!-- R1 -->
+  </xs:complexType>
+
+  <!-- Vazio quando a folha ainda nao foi lancada. -->
+  <xs:complexType name="pagamentos">
+    <xs:sequence>
+      <xs:element name="pagamento" type="g:pagamento" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- CANCELADO fica fora das somas. -->
+  <xs:complexType name="totalizador">
+    <xs:sequence>
+      <xs:element name="qtdPagos" type="xs:nonNegativeInteger"/>
+      <xs:element name="valorPago" type="g:valorMonetario"/>
+      <xs:element name="qtdPendentes" type="xs:nonNegativeInteger"/>
+      <xs:element name="valorPendente" type="g:valorMonetario"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ===================== Elementos raiz ===================== -->
+
+  <xs:element name="consultaPagamentosFolha">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="origem" type="g:identificadorSistema"/>              <!-- R7 -->
+        <xs:element name="referencia" type="g:referencia" minOccurs="0"/>       <!-- R8 -->
+        <xs:element name="cpf" type="g:cpf" minOccurs="0"/>                     <!-- R1 -->
+      </xs:sequence>
+      <xs:attribute name="versao" type="xs:string" use="required" fixed="1.0"/>
+      <xs:attribute name="id" type="g:idConsulta" use="required"/>  <!-- R10 -->
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="respostaPagamentosFolha">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="dataConsulta" type="xs:date"/>  <!-- R4 -->
+        <xs:choice>
+          <xs:sequence>
+            <xs:element name="pagamentos" type="g:pagamentos"/>
+            <xs:element name="totalizador" type="g:totalizador"/>
+          </xs:sequence>
+          <xs:element name="erro" type="g:mensagemErro"/>
+        </xs:choice>
+      </xs:sequence>
+      <xs:attribute name="versao" type="xs:string" use="required" fixed="1.0"/>
+      <xs:attribute name="id" type="g:idConsulta" use="required"/>  <!-- R10 -->
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>
