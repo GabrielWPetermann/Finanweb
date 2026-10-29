@@ -1,5 +1,6 @@
 // Consultas que os outros setores fazem ao Financeiro pelo socket:
-// inadimplencia de cliente (Vendas) e pendencias com fornecedor (Compras).
+// inadimplencia de cliente (Vendas), pendencias com fornecedor (Compras) e
+// pagamentos da folha (RH).
 //
 // O ouvinte passa o XML recebido para responderConsulta e manda o XML
 // devolvido de volta a quem perguntou, na hora e sem aprovacao: consulta so
@@ -222,6 +223,83 @@ async function responderPendencias(db: Banco, consulta: No): Promise<Resultado> 
   };
 }
 
+// O status da despesa e texto livre (editavel em Pagamentos). CONFIRMADO e o
+// "pago" dos envios v2; PAGO tambem vale, para quem digitar assim na tela.
+function situacaoPagamento(status: string): "PAGO" | "PENDENTE" | "CANCELADO" {
+  const normalizado = status.trim().toUpperCase();
+  if (normalizado === "CONFIRMADO" || normalizado === "PAGO") return "PAGO";
+  if (normalizado === "CANCELADO") return "CANCELADO";
+  return "PENDENTE";
+}
+
+// Cada funcionario da folha foi gravado com referencia "<folha>/<cpf>" (ver
+// lerFolha em lib/importacao.ts). O CPF nao tem barra, entao a ultima separa.
+const REGEX_REFERENCIA_FOLHA = /^(.+)\/(\d{11})$/;
+
+async function responderPagamentosFolha(db: Banco, consulta: No): Promise<Resultado> {
+  const origem = texto(consulta.origem);
+  const referencia = texto(consulta.referencia);
+  const cpf = texto(consulta.cpf);
+
+  // A origem da consulta e a mesma da folha: o RH so ve as folhas que mandou.
+  const despesas = await db.despesaAgrupada.findMany({
+    where: {
+      origem,
+      referencia: {
+        not: null,
+        startsWith: referencia ? `${referencia}/` : undefined,
+        endsWith: cpf ? `/${cpf}` : undefined,
+      },
+    },
+    select: {
+      valor: true,
+      status: true,
+      dataPagamento: true,
+      vencimento: true,
+      referencia: true,
+      fornecedor: { select: { nome: true } },
+    },
+  });
+
+  const pagamentos = despesas
+    .map((d) => ({ ...d, partes: REGEX_REFERENCIA_FOLHA.exec(d.referencia ?? "") }))
+    .filter((d) => d.partes !== null)
+    .map((d) => ({
+      folha: d.partes![1],
+      cpf: d.partes![2],
+      nome: textoContrato(d.fornecedor.nome, "(sem nome)"),
+      valor: Number(d.valor),
+      situacao: situacaoPagamento(d.status),
+      dataPrevista: formatarDataIso(d.vencimento ?? d.dataPagamento),
+      dataPagamento: formatarDataIso(d.dataPagamento),
+    }))
+    .sort((a, b) => a.folha.localeCompare(b.folha) || a.nome.localeCompare(b.nome, "pt-BR"));
+
+  const pagos = pagamentos.filter((p) => p.situacao === "PAGO");
+  const pendentes = pagamentos.filter((p) => p.situacao === "PENDENTE");
+  const soma = (lista: typeof pagamentos) => lista.reduce((total, p) => total + p.valor, 0);
+
+  const itens = pagamentos.map(
+    (p) => `    <pagamento folha="${p.folha}" cpf="${p.cpf}">
+      <nome>${escaparXml(p.nome)}</nome>
+      <valor>${valor(p.valor)}</valor>
+      <situacao>${p.situacao}</situacao>
+      <dataPrevista>${p.dataPrevista}</dataPrevista>${p.situacao === "PAGO" ? `\n      <dataPagamento>${p.dataPagamento}</dataPagamento>` : ""}
+    </pagamento>`
+  );
+
+  return {
+    corpo: `${itens.length > 0 ? `  <pagamentos>\n${itens.join("\n")}\n  </pagamentos>` : "  <pagamentos/>"}
+  <totalizador>
+    <qtdPagos>${pagos.length}</qtdPagos>
+    <valorPago>${valor(soma(pagos))}</valorPago>
+    <qtdPendentes>${pendentes.length}</qtdPendentes>
+    <valorPendente>${valor(soma(pendentes))}</valorPendente>
+  </totalizador>`,
+    resumo: `${origem} ${referencia || "todas as folhas"}${cpf ? ` cpf ${cpf}` : ""}: ${pagos.length} pago(s), ${pendentes.length} pendente(s)`,
+  };
+}
+
 const CONSULTAS: Record<string, TipoConsulta> = {
   "urn:finanweb:inadimplencia:1.0": {
     schema: "inadimplencia-v1.xsd",
@@ -236,6 +314,13 @@ const CONSULTAS: Record<string, TipoConsulta> = {
     raizResposta: "respostaPendencias",
     prefixoArquivo: "resposta-pendencias",
     responder: responderPendencias,
+  },
+  "urn:finanweb:pagamentos-folha:1.0": {
+    schema: "pagamentos-folha-v1.xsd",
+    raizConsulta: "consultaPagamentosFolha",
+    raizResposta: "respostaPagamentosFolha",
+    prefixoArquivo: "resposta-pagamentos-folha",
+    responder: responderPagamentosFolha,
   },
 };
 

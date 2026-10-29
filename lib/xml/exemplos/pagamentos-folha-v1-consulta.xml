@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- RH -> Financeiro: quem da folha ja foi pago? Sem <referencia>, todas as folhas; com <cpf>, so um
+     funcionario. Schema: pagamentos-folha-v1.xsd -->
+<consultaPagamentosFolha xmlns="urn:finanweb:pagamentos-folha:1.0" versao="1.0" id="rh-000012">
+  <origem>rh</origem>
+  <referencia>FOLHA-2026-10</referencia>
+</consultaPagamentosFolha>

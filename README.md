@@ -214,16 +214,24 @@ entrada tem **Importar** (o mesmo caminho do `/integrar` — XSD, parser, Blob
 e banco — e o arquivo vai para o Histórico em nome de quem aprovou) ou
 **Descartar**.
 
-**Consultas** (inadimplência de cliente e pendências com fornecedor, ver
+**Consultas** (inadimplência de cliente, pendências com fornecedor e
+pagamentos da folha, ver
 "Contratos com outros setores") não passam pela caixa de entrada: só leem o
 banco, então o ouvinte responde na hora, com um XML enviado como arquivo
 para o id de quem perguntou (`resposta-inadimplencia-<id>.xml` ou
-`resposta-pendencias-<id>.xml`). A lógica fica em `lib/socket/consultas.ts`,
+`resposta-pendencias-<id>.xml`, `resposta-pagamentos-folha-<id>.xml`). A lógica fica em `lib/socket/consultas.ts`,
 separada do socket, e a própria resposta é conferida no XSD antes de sair;
 falha ao ler o banco vira uma resposta com `<erro>`. O vencimento vem dos
 envios v2; lançamento sem ele (manual, CSV, XML v1) vence 30 dias depois do
 pedido, na conta a receber, e na `dataPagamento`, na despesa. Cada título e
 pendência vindo de outro setor sai com a `referencia` dele.
+
+Na consulta de pagamentos da folha, o RH só vê as folhas que mandou: a busca
+é pela `origem` da consulta e pela referência da folha (cada funcionário foi
+gravado como `<folha>/<cpf>`). O status da despesa é texto livre em
+`/pagamentos`: `CONFIRMADO` ou `PAGO` = pago (com a `dataPagamento`),
+`CANCELADO` = cancelado, o resto = pendente. Para marcar um salário como
+pago, edite o pagamento e troque o status para `CONFIRMADO`.
 
 Como o ouvinte só recebe enquanto está rodando (o servidor de chat não
 guarda mensagem para quem está offline), ele precisa estar no ar durante a
@@ -277,6 +285,7 @@ contratos XML: um XSD em `lib/xml/schemas/` e um exemplo válido em
 | Folha de pagamento | RH | recebe | `folha-v1.xsd` |
 | Consulta de inadimplência | Vendas | responde | `inadimplencia-v1.xsd` |
 | Pendências com fornecedor | Compras | responde | `pendencias-fornecedor-v1.xsd` |
+| Pagamentos da folha | RH | responde | `pagamentos-folha-v1.xsd` |
 
 As consultas são respondidas na hora (ver "Socket"). Os envios vão para a
 caixa de entrada de `/socket` como os outros XMLs, e também podem ser

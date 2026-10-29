@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 const OBSERVACOES: Record<string, string> = {
   Vendas: "O “quem vendeu” do diagrama não é enviado: o Financeiro não usa essa informação.",
   Compras: "No diagrama aparece “valor e cliente”; do lado de Compras, quem aparece é o fornecedor.",
-  RH: "No diagrama, a seta da folha aparece do Financeiro para o RH; o certo é o RH enviar para o Financeiro.",
+  RH: "No diagrama, a seta da folha aparece do Financeiro para o RH; o certo é o RH enviar a folha, e o Financeiro responder quem já foi pago.",
 };
 
 const SETORES = [...new Set(CONTRATOS.map((c) => c.setor))];
@@ -81,7 +81,8 @@ export default function ContratosPage() {
         <li>
           A resposta volta em privado para quem enviou. Nos envios, uma mensagem no chat dizendo se o arquivo foi
           aceito ou o motivo da recusa. Nas consultas, um arquivo com o mesmo <code>id</code>:{" "}
-          <code>resposta-inadimplencia-&lt;id&gt;.xml</code> ou <code>resposta-pendencias-&lt;id&gt;.xml</code>.
+          <code>resposta-inadimplencia-&lt;id&gt;.xml</code>, <code>resposta-pendencias-&lt;id&gt;.xml</code> ou{" "}
+          <code>resposta-pagamentos-folha-&lt;id&gt;.xml</code>.
           Consulta inválida volta em texto no chat, com o motivo.
         </li>
         <li>
@@ -120,6 +121,11 @@ export default function ContratosPage() {
         <li>
           <strong>Inadimplente</strong>: cliente com conta a receber em aberto e vencimento anterior à data da
           consulta.
+        </li>
+        <li>
+          <strong>Pagamentos da folha</strong>: a <code>origem</code> da consulta tem que ser a mesma da folha
+          enviada, e a <code>referencia</code> é a da folha. Lista vazia quer dizer que a folha ainda não foi lançada
+          no Financeiro.
         </li>
       </ul>
 
