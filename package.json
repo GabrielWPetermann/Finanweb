@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "postinstall": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
-    "socket": "tsx --env-file=.env scripts/socket-ouvinte.ts"
+    "socket": "tsx --env-file=.env scripts/socket-ouvinte.ts",
+    "simulador:rh": "tsx scripts/simulador-rh.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

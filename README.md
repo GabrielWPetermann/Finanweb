@@ -234,6 +234,16 @@ repositório e o `BLOB_READ_WRITE_TOKEN`:
 npm run socket
 ```
 
+Para testar a folha sem o sistema do RH, há um simulador: ele conecta no
+servidor como `rh` (ou `SIMULADOR_NOME`, nunca o nome do ouvinte) e abre
+http://localhost:3100, onde se monta a folha, manda para `#finanweb` e vê as
+respostas. Tem cenários prontos para as recusas (líquido errado, totalizador
+errado, CPF fora do XSD) e para gerar uma referência nova.
+
+```bash
+npm run simulador:rh
+```
+
 Quem está conectado ao servidor também vem do ouvinte: ele grava no banco
 (tabela `EstadoOuvinte`) a resposta do `/lista` a cada batimento e sempre que
 alguém entra, sai ou troca de nome. As telas leem dali em vez de perguntar ao
