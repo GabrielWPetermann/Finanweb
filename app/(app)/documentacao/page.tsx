@@ -446,7 +446,9 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
       <h2 id="rest-soap">REST e SOAP</h2>
       <p>
         As mesmas mensagens do socket também podem chegar por HTTP, sem login, para os grupos que preferirem. O
-        conteúdo e as regras são os mesmos: o Finanweb converte para o XML do contrato e confere no mesmo XSD.
+        conteúdo e as regras são os mesmos: o Finanweb converte para o XML do contrato e confere no mesmo XSD. Cada
+        setor se identifica com a chave gerada em <a href="/admin/registro">Registry</a> (cabeçalho{" "}
+        <code>Authorization: Bearer</code>) e só envia e consulta em nome próprio.
       </p>
       <ul>
         <li>
@@ -466,6 +468,12 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
           Consultas respondem na hora, como pelo socket. Avisos de pagamento não têm como ser empurrados por
           HTTP: o setor busca em <code>/api/v1/avisos-pagamento</code> ou na operação SOAP{" "}
           <code>ConsultarAvisosPagamento</code>.
+        </li>
+        <li>
+          <strong>Limites</strong>: 60 chamadas por minuto por setor na API, 120 por IP na busca do registry, 20
+          por IP sem chave, e 30 arquivos por minuto por sistema no socket. Ajustáveis pelas variáveis{" "}
+          <code>LIMITE_POR_SETOR_MINUTO</code>, <code>LIMITE_POR_IP_MINUTO</code>,{" "}
+          <code>LIMITE_SEM_CHAVE_MINUTO</code> e <code>SOCKET_LIMITE_MINUTO</code>.
         </li>
         <li>
           Exemplos de chamada, JSON e envelope estão em <a href="/contratos">Contratos de integração</a>.

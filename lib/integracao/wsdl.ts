@@ -70,6 +70,11 @@ export function montarWsdl(base: string): string {
     Servico SOAP do Financeiro (Finanweb). Os mesmos contratos do socket e da
     API REST: ${base}/contratos. Envios ficam aguardando a aprovacao do
     Financeiro; consultas respondem na hora. Recusas voltam como soap:Fault.
+    Toda chamada leva a chave do setor no cabecalho HTTP
+    "Authorization: Bearer &lt;chave&gt;" (pedida ao Financeiro), e a origem da
+    mensagem tem que ser o setor da chave. Rate limit: 60 chamadas por minuto
+    por setor; sem chave, 401; origem de outro setor, 403; acima do limite,
+    429 com Retry-After.
   </wsdl:documentation>
 
   <wsdl:types>

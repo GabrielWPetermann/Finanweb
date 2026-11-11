@@ -219,3 +219,17 @@ model ServicoRegistrado {
   @@unique([setor, nome, versao, protocolo])
   @@index([nome])
 }
+
+// Rate limit da API (lib/integracao/limite.ts): quantas requisicoes cada
+// chave fez em cada janela de um minuto. Fica no banco porque as funcoes da
+// Vercel nao dividem memoria: um contador por instancia nao limitaria nada.
+model LimiteRequisicao {
+  // "setor:vendas" para quem tem chave, "ip:..." para o resto.
+  chave    String
+  // Inicio da janela.
+  janela   DateTime
+  contagem Int      @default(1)
+
+  @@id([chave, janela])
+  @@index([janela])
+}

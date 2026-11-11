@@ -5,7 +5,12 @@
 // sao os mesmos. A operacao e escolhida pelo elemento do Body, nao pelo
 // SOAPAction. So as mensagens sem equivalente no socket (confirmacao de
 // envio, consulta de avisos) tem schema proprio: servico-v1.xsd.
+//
+// A chave do setor vai no cabecalho HTTP Authorization, como no REST; a rota
+// confere a chave e o rate limit antes, e aqui so se confere que a origem da
+// mensagem e o setor da chave.
 
+import { origemDeOutroSetor } from "@/lib/integracao/acesso";
 import { carimbo, receberMovimento } from "@/lib/integracao/envios";
 import { lerNamespaceRaiz } from "@/lib/socket/caixa-entrada";
 import { ehConsulta, responderConsulta } from "@/lib/socket/consultas";
@@ -103,10 +108,12 @@ ${corpo}
 }
 
 // SOAP 1.1: falha volta com HTTP 500. Client = o pedido tem problema;
-// Server = problema do nosso lado, vale tentar de novo.
-export function falha(codigo: "Client" | "Server", mensagem: string): RespostaSoap {
+// Server = problema do nosso lado, vale tentar de novo. Chave e rate limit
+// usam o status HTTP proprio (401, 403, 429), que os clientes tratam antes de
+// ler o envelope.
+export function falha(codigo: "Client" | "Server", mensagem: string, status = 500): RespostaSoap {
   return {
-    status: 500,
+    status,
     xml: envelope(`<soap:Fault>
   <faultcode>soap:${codigo}</faultcode>
   <faultstring>${escaparXml(mensagem)}</faultstring>
@@ -121,17 +128,16 @@ const NOMES_ENVIO: Record<string, string> = {
   "urn:finanweb:folha:1.0": "folha",
 };
 
-async function consultarAvisos(xml: string): Promise<RespostaSoap> {
+async function consultarAvisos(xml: string, setor: string): Promise<RespostaSoap> {
   const erros = await validarContraXsd(xml, "servico-v1.xsd");
   if (erros.length > 0) return falha("Client", `não passou no XSD: ${erros.slice(0, 3).join(" ")}`);
   if (!/^<consultaAvisosPagamento\b/m.test(semDeclaracao(xml))) {
     return falha("Client", "esperado <consultaAvisosPagamento> no soap:Body.");
   }
 
-  const origem = /<origem>([^<]+)<\/origem>/.exec(xml)?.[1] ?? "";
   const desdeTexto = /<desde>([^<]+)<\/desde>/.exec(xml)?.[1];
   try {
-    const avisos = await listarAvisosPagamento(origem, desdeTexto ? new Date(desdeTexto) : undefined);
+    const avisos = await listarAvisosPagamento(setor, desdeTexto ? new Date(desdeTexto) : undefined);
     const itens = avisos.map((a) => `<aviso geradoEm="${a.geradoEm.toISOString()}">\n${semDeclaracao(a.xml)}\n</aviso>`);
     return { status: 200, xml: envelope(`<respostaAvisosPagamento xmlns="${NS_SERVICO}">\n${itens.join("\n")}\n</respostaAvisosPagamento>`) };
   } catch (erro) {
@@ -140,13 +146,22 @@ async function consultarAvisos(xml: string): Promise<RespostaSoap> {
   }
 }
 
-/** Atende um POST em /api/soap: escolhe a operacao pelo elemento do Body. */
-export async function atenderSoap(requisicao: string): Promise<RespostaSoap> {
+/**
+ * Atende um POST em /api/soap: escolhe a operacao pelo elemento do Body.
+ * setor: dono da chave, ja conferida pela rota.
+ */
+export async function atenderSoap(requisicao: string, setor: string): Promise<RespostaSoap> {
   if (Buffer.byteLength(requisicao, "utf8") > MAX_BYTES_XML) {
     return falha("Client", "o limite é de 10 MB por requisição.");
   }
   const corpo = extrairCorpo(requisicao);
   if (!corpo.ok) return falha("Client", corpo.erro);
+
+  // Todas as mensagens tem <origem> (no cabecalho dos envios, na raiz das
+  // consultas). Ausente, o XSD aponta; de outro setor, para aqui.
+  const origem = /<origem>\s*([^<\s]+)\s*<\/origem>/.exec(corpo.xml)?.[1] ?? "";
+  const outroSetor = origemDeOutroSetor(origem, setor);
+  if (outroSetor) return falha("Client", outroSetor, 403);
 
   // Consultas: a resposta do contrato vai direto no Body, como no socket.
   if (ehConsulta(corpo.xml)) {
@@ -156,13 +171,12 @@ export async function atenderSoap(requisicao: string): Promise<RespostaSoap> {
   }
 
   const namespace = lerNamespaceRaiz(corpo.xml) ?? "";
-  if (namespace === NS_SERVICO) return consultarAvisos(corpo.xml);
+  if (namespace === NS_SERVICO) return consultarAvisos(corpo.xml, setor);
 
   // Envios: mesma caixa de entrada do socket e do REST.
-  const origem = /<origem>\s*([^<\s]+)\s*<\/origem>/.exec(corpo.xml)?.[1] ?? "?";
   const recebido = await receberMovimento(corpo.xml, {
-    remetente: `${origem} (SOAP)`,
-    nomeArquivo: `${NOMES_ENVIO[namespace] ?? "movimento"}-${origem}-${carimbo()}.xml`,
+    remetente: `${setor} (SOAP)`,
+    nomeArquivo: `${NOMES_ENVIO[namespace] ?? "movimento"}-${setor}-${carimbo()}.xml`,
   });
   if (!recebido.ok) return falha(recebido.motivo === "FALHA" ? "Server" : "Client", recebido.erro);
 

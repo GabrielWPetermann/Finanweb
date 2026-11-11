@@ -51,6 +51,23 @@ interface ArquivoEmAndamento {
   timer?: NodeJS.Timeout;
 }
 
+// Rate limit do socket: arquivos (envios e consultas) por remetente a cada
+// minuto. Aqui basta memoria: o ouvinte e um processo so, ao contrario da API
+// na Vercel (lib/integracao/limite.ts). O chat de texto nao entra na conta.
+const LIMITE_SOCKET_MINUTO = Number(process.env.SOCKET_LIMITE_MINUTO || 30);
+const arquivosPorRemetente = new Map<string, { janela: number; contagem: number }>();
+
+/** Segundos ate a proxima janela se o remetente estourou o limite; 0 se pode. */
+function esperaDoLimite(remetente: string): number {
+  // Pelo nome, sem o id: reconectar da outro id, mas e o mesmo sistema.
+  const nome = remetente.slice(0, remetente.lastIndexOf("#")).toLowerCase() || remetente;
+  const janela = Math.floor(Date.now() / 60_000);
+  const atual = arquivosPorRemetente.get(nome);
+  const contagem = atual && atual.janela === janela ? atual.contagem + 1 : 1;
+  arquivosPorRemetente.set(nome, { janela, contagem });
+  return contagem > LIMITE_SOCKET_MINUTO ? Math.ceil(((janela + 1) * 60_000 - Date.now()) / 1000) : 0;
+}
+
 function log(texto: string) {
   console.log(`${new Date().toLocaleTimeString("pt-BR")}  ${texto}`);
 }
@@ -107,6 +124,15 @@ function conectar() {
   }
 
   async function processarArquivo(remetente: string, nomeArquivo: string, arquivo: ArquivoEmAndamento) {
+    const espera = esperaDoLimite(remetente);
+    if (espera > 0) {
+      log(`recusado "${nomeArquivo}" de ${remetente}: passou de ${LIMITE_SOCKET_MINUTO} arquivos por minuto`);
+      responder(
+        remetente,
+        `"${nomeArquivo}" recusado: limite de ${LIMITE_SOCKET_MINUTO} arquivos por minuto. Tente de novo em ${espera}s.`
+      );
+      return;
+    }
     if (!nomeArquivo.toLowerCase().endsWith(".xml")) {
       log(`ignorado "${nomeArquivo}" de ${remetente}: não é XML`);
       responder(remetente, `"${nomeArquivo}" ignorado: o Finanweb recebe só arquivos .xml.`);

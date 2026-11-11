@@ -108,7 +108,9 @@ export default async function RegistroPage({ searchParams }: Props) {
       <ol>
         <li>
           <strong>Chave</strong>: peça ao Financeiro a chave do seu setor (mensagem privada para{" "}
-          <code>#finanweb</code>). Ela vale para publicar e remover só os serviços do seu setor.
+          <code>#finanweb</code>). Ela vale para publicar e remover os serviços do seu setor, e é a mesma que as APIs
+          REST e SOAP do Financeiro pedem. A busca é livre (até 120 por minuto por IP); com a chave, até 60 chamadas
+          por minuto.
         </li>
         <li>
           <strong>Publish</strong>: publique cada serviço que vocês oferecem, um por protocolo e versão. Publicar
