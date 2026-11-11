@@ -1,0 +1,30 @@
+{
+  "id": "rh-000012",
+  "dataConsulta": "2026-11-06",
+  "pagamentos": [
+    {
+      "folha": "FOLHA-2026-10",
+      "cpf": "52998224725",
+      "nome": "Beatriz Conceição",
+      "valor": 4282.4,
+      "situacao": "PAGO",
+      "dataPrevista": "2026-11-05",
+      "dataPagamento": "2026-11-05"
+    },
+    {
+      "folha": "FOLHA-2026-10",
+      "cpf": "98765432100",
+      "nome": "Carlos Lima",
+      "valor": 3087.65,
+      "situacao": "PENDENTE",
+      "dataPrevista": "2026-11-05",
+      "dataPagamento": null
+    }
+  ],
+  "totalizador": {
+    "qtdPagos": 1,
+    "valorPago": 4282.4,
+    "qtdPendentes": 1,
+    "valorPendente": 3087.65
+  }
+}

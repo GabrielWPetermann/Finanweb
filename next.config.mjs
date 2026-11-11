@@ -9,12 +9,13 @@ const nextConfig = {
   // (ele so segue require/import). Sem isso eles nao entram no bundle de
   // deploy (serverless) e a validacao falha so em producao:
   //   - os .xsd, lidos pelo lib/xml/validador.ts;
-  //   - os XMLs de exemplo dos contratos, servidos por /api/contratos;
+  //   - os XMLs e JSONs de exemplo dos contratos, servidos por /api/contratos;
   //   - o xmllint.wasm, que o proprio xmllint-wasm carrega de __dirname.
   outputFileTracingIncludes: {
     "/**": [
       "./lib/xml/schemas/**/*.xsd",
       "./lib/xml/exemplos/*.xml",
+      "./lib/xml/exemplos/*.json",
       "./node_modules/xmllint-wasm/*.wasm",
     ],
   },

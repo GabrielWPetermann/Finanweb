@@ -5,9 +5,11 @@
 // A tela de Pagamentos roda na Vercel, que nao fica conectada ao servidor da
 // turma: o aviso entra na fila de arquivos do chat (MensagemChat) e o ouvinte
 // manda para o setor, pelo nome dele no servidor, que e a origem gravada na
-// despesa. Setor desconectado perde o aviso; as consultas continuam valendo.
+// despesa. Pelo socket, setor desconectado perde o aviso; quem integra por
+// REST ou SOAP busca os avisos gerados (listarAvisosPagamento).
 
 import type { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/db";
 import { enfileirarArquivo } from "@/lib/socket/chat";
 import { SOCKET_NOME } from "@/lib/socket/config";
 import {
@@ -85,4 +87,32 @@ export async function avisarPagamento(statusAnterior: string, despesa: DespesaAv
   } catch (erro) {
     console.error(erro);
   }
+}
+
+// Uma consulta nao pode trazer o historico inteiro de uma vez.
+const MAX_AVISOS = 200;
+
+/**
+ * Avisos ja gerados para um setor, do mais antigo para o mais novo, depois de
+ * `desde` (exclusivo). Sao os arquivos que ficaram na fila do chat, tenham
+ * chegado pelo socket ou nao. geradoEm do ultimo serve de `desde` na proxima.
+ */
+export async function listarAvisosPagamento(
+  origem: string,
+  desde?: Date
+): Promise<{ xml: string; geradoEm: Date }[]> {
+  const mensagens = await prisma.mensagemChat.findMany({
+    where: {
+      direcao: "ENVIADA",
+      destino: origem,
+      arquivoNome: { startsWith: "aviso-pagamento-" },
+      ...(desde ? { criadoEm: { gt: desde } } : {}),
+    },
+    orderBy: { criadoEm: "asc" },
+    take: MAX_AVISOS,
+    select: { arquivo: true, criadoEm: true },
+  });
+  return mensagens.flatMap((m) =>
+    m.arquivo ? [{ xml: Buffer.from(m.arquivo).toString("utf8"), geradoEm: m.criadoEm }] : []
+  );
 }

@@ -1,0 +1,31 @@
+{
+  "referencia": "FOLHA-2026-10",
+  "cabecalho": {
+    "empresa": "Empresa LTDA",
+    "cnpj": "12345678000199",
+    "origem": "rh",
+    "dataArquivo": "2026-10-31",
+    "usuario": "paula.rh"
+  },
+  "competencia": "2026-10",
+  "dataPagamento": "2026-11-05",
+  "funcionarios": [
+    {
+      "cpf": "98765432100",
+      "matricula": "F-0042",
+      "nome": "Carlos Lima",
+      "salarioBruto": "3500.00",
+      "descontos": "412.35",
+      "salarioLiquido": "3087.65"
+    },
+    {
+      "cpf": "52998224725",
+      "matricula": "F-0057",
+      "nome": "Beatriz Conceição",
+      "salarioBruto": "5200.00",
+      "descontos": "917.60",
+      "salarioLiquido": "4282.40"
+    }
+  ],
+  "totalizador": { "qtdFuncionarios": 2, "valorLiquidoTotal": "7370.05" }
+}

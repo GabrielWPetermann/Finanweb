@@ -155,7 +155,8 @@ export default function DocumentacaoPage() {
       <p className="subtitulo">
         <a href="#entrada-de-dados">Entrada de dados</a> · <a href="#csv">CSV</a> · <a href="#xml">XML</a> ·{" "}
         <a href="#cadastro">Clientes e Fornecedores</a> · <a href="#socket">Socket</a> · <a href="#chat">Chat</a>{" "}
-        · <a href="#contratos">Contratos com outros setores</a> · <a href="#particularidades">Particularidades</a>
+        · <a href="#contratos">Contratos com outros setores</a> · <a href="#rest-soap">REST e SOAP</a> ·{" "}
+        <a href="#particularidades">Particularidades</a>
       </p>
 
       <h2 id="entrada-de-dados">Entrada de dados</h2>
@@ -168,8 +169,9 @@ export default function DocumentacaoPage() {
           Fornecedores em CSV.
         </li>
         <li>
-          <strong>Socket</strong>: XML de Entrada ou Saída, venda, compra ou folha de pagamento recebido de outro
-          sistema pelo servidor da turma, importado após aprovação em <a href="/socket">Socket</a>.
+          <strong>Socket, REST ou SOAP</strong>: XML de Entrada ou Saída, venda, compra ou folha de pagamento
+          recebido de outro sistema (pelo servidor da turma ou pela API), importado após aprovação em{" "}
+          <a href="/socket">Socket</a>.
         </li>
       </ul>
       <p>
@@ -438,6 +440,35 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
           <strong>Pagamentos da folha</strong>: o RH pode perguntar quem já foi pago. Para marcar um salário como
           pago, edite o pagamento em <a href="/pagamentos">Pagamentos</a> e troque o status para{" "}
           <code>CONFIRMADO</code>.
+        </li>
+      </ul>
+
+      <h2 id="rest-soap">REST e SOAP</h2>
+      <p>
+        As mesmas mensagens do socket também podem chegar por HTTP, sem login, para os grupos que preferirem. O
+        conteúdo e as regras são os mesmos: o Finanweb converte para o XML do contrato e confere no mesmo XSD.
+      </p>
+      <ul>
+        <li>
+          <strong>REST (JSON)</strong>: <code>/api/v1</code>. Envios por <code>POST</code> (
+          <code>/api/v1/vendas</code>, <code>/compras</code>, <code>/folhas</code>), consultas por{" "}
+          <code>GET</code> (<code>/inadimplencia</code>, <code>/pendencias</code>, <code>/pagamentos-folha</code>,{" "}
+          <code>/avisos-pagamento</code>).
+        </li>
+        <li>
+          <strong>SOAP</strong>: <code>/api/soap</code>, com o WSDL em <a href="/api/soap?wsdl">/api/soap?wsdl</a>.
+        </li>
+        <li>
+          Envios por REST e SOAP também vão para <a href="/socket">Socket</a> → Recebidos, com o remetente{" "}
+          <code>vendas (REST)</code> ou <code>vendas (SOAP)</code>, e só viram lançamento depois de aprovados.
+        </li>
+        <li>
+          Consultas respondem na hora, como pelo socket. Avisos de pagamento não têm como ser empurrados por
+          HTTP: o setor busca em <code>/api/v1/avisos-pagamento</code> ou na operação SOAP{" "}
+          <code>ConsultarAvisosPagamento</code>.
+        </li>
+        <li>
+          Exemplos de chamada, JSON e envelope estão em <a href="/contratos">Contratos de integração</a>.
         </li>
       </ul>
 

@@ -14,7 +14,7 @@
 // Precisa do .env: BLOB_READ_WRITE_TOKEN (caixa de entrada) e DATABASE_URL (chat).
 
 import net from "node:net";
-import { MAX_BYTES_XML, validarContraXsd } from "@/lib/xml/validador";
+import { MAX_BYTES_XML } from "@/lib/xml/validador";
 import { SOCKET_HOST, SOCKET_NOME, SOCKET_PORTA } from "@/lib/socket/config";
 import {
   LeitorProtocolo,
@@ -24,9 +24,8 @@ import {
   type PedacoRecebido,
 } from "@/lib/socket/protocolo";
 import { gravarConectados } from "@/lib/socket/estado";
-import { detectarMovimento, guardarRecebido, lerNamespaceRaiz } from "@/lib/socket/caixa-entrada";
 import { ehConsulta, responderConsulta } from "@/lib/socket/consultas";
-import { CONTRATOS } from "@/lib/xml/contratos";
+import { receberMovimento } from "@/lib/integracao/envios";
 import {
   linhaParaEnviar,
   marcarEnviada,
@@ -125,47 +124,16 @@ function conectar() {
       return;
     }
 
-    const formato = detectarMovimento(conteudo);
-    if (!formato) {
-      // Contrato publicado em /contratos cujo envio ainda nao e importado
-      // (hoje nenhum; serve para a proxima versao): a recusa diz isso, em vez
-      // de tratar o namespace como desconhecido.
-      const namespace = lerNamespaceRaiz(conteudo);
-      if (CONTRATOS.some((c) => c.namespace === namespace && c.sentido !== "envia")) {
-        log(`recusado "${nomeArquivo}" de ${remetente}: ${namespace} ainda não é importado`);
-        responder(
-          remetente,
-          `"${nomeArquivo}" recusado: o Finanweb ainda não importa ${namespace}. Tente de novo mais tarde.`
-        );
-        return;
-      }
-      log(`recusado "${nomeArquivo}" de ${remetente}: namespace desconhecido`);
-      responder(
-        remetente,
-        `"${nomeArquivo}" recusado: não é um movimento nem uma consulta do Finanweb. Os formatos aceitos estão na página /contratos do Finanweb.`
-      );
+    // Mesmo caminho do REST e do SOAP (lib/integracao/envios.ts). O socket
+    // tambem aceita o v1, para reimportar o que o Finanweb exportou.
+    const recebido = await receberMovimento(conteudo, { remetente, nomeArquivo, aceitaV1: true });
+    if (!recebido.ok) {
+      log(`recusado "${nomeArquivo}" de ${remetente}: ${recebido.erro}`);
+      responder(remetente, `"${nomeArquivo}" recusado: ${recebido.erro}`);
       return;
     }
-
-    // Validar ja na chegada da a resposta na hora para quem mandou, em vez de
-    // o erro so aparecer quando alguem tentar aprovar.
-    const { tipo, schema } = formato;
-    const erros = await validarContraXsd(conteudo, schema);
-    if (erros.length > 0) {
-      log(`recusado "${nomeArquivo}" de ${remetente}: ${erros[0]}`);
-      responder(remetente, `"${nomeArquivo}" recusado pelo XSD: ${erros.slice(0, 3).join(" ")}`);
-      return;
-    }
-
-    try {
-      await guardarRecebido({ remetente, nomeArquivo, tipo }, conteudo);
-    } catch (erro) {
-      log(`erro ao guardar "${nomeArquivo}": ${String(erro)}`);
-      responder(remetente, `"${nomeArquivo}" não pôde ser guardado no Finanweb. Tente de novo.`);
-      return;
-    }
-    log(`recebido "${nomeArquivo}" (${tipo}) de ${remetente}, aguardando aprovação`);
-    responder(remetente, `"${nomeArquivo}" recebido (${tipo}), aguardando aprovação no Finanweb.`);
+    log(`recebido "${nomeArquivo}" (${recebido.tipo}) de ${remetente}, aguardando aprovação`);
+    responder(remetente, `"${nomeArquivo}" recebido (${recebido.tipo}), aguardando aprovação no Finanweb.`);
   }
 
   function finalizarArquivo(chave: string, remetente: string, nomeArquivo: string) {

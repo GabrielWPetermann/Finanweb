@@ -294,19 +294,20 @@ fila), o que mantém o compute do Neon acordado enquanto ele estiver no ar.
 ### Contratos com outros setores
 
 Os pontos de interoperabilidade do Financeiro levantados com a turma viraram
-contratos XML: um XSD em `lib/xml/schemas/` e um exemplo válido em
-`lib/xml/exemplos/` para cada mensagem. O catálogo fica em
-`lib/xml/contratos.ts`.
+contratos XML: um XSD em `lib/xml/schemas/` e exemplos válidos em
+`lib/xml/exemplos/` (XML e o JSON equivalente da API REST) para cada
+mensagem. O catálogo fica em `lib/xml/contratos.ts`. Cada mensagem vai por
+três caminhos: socket, REST (JSON) e SOAP (ver "API REST e SOAP").
 
-| Mensagem | Setor | Financeiro | Schema |
-|---|---|---|---|
-| Venda (conta a receber) | Vendas | recebe | `entrada-v2.xsd` |
-| Compra (conta a pagar) | Compras | recebe | `saida-v2.xsd` |
-| Folha de pagamento | RH | recebe | `folha-v1.xsd` |
-| Consulta de inadimplência | Vendas | responde | `inadimplencia-v1.xsd` |
-| Pendências com fornecedor | Compras | responde | `pendencias-fornecedor-v1.xsd` |
-| Pagamentos da folha | RH | responde | `pagamentos-folha-v1.xsd` |
-| Aviso de pagamento | Compras e RH | envia | `aviso-pagamento-v1.xsd` |
+| Mensagem | Setor | Financeiro | Schema | REST | SOAP |
+|---|---|---|---|---|---|
+| Venda (conta a receber) | Vendas | recebe | `entrada-v2.xsd` | `POST /api/v1/vendas` | `EnviarVenda` |
+| Compra (conta a pagar) | Compras | recebe | `saida-v2.xsd` | `POST /api/v1/compras` | `EnviarCompra` |
+| Folha de pagamento | RH | recebe | `folha-v1.xsd` | `POST /api/v1/folhas` | `EnviarFolha` |
+| Consulta de inadimplência | Vendas | responde | `inadimplencia-v1.xsd` | `GET /api/v1/inadimplencia` | `ConsultarInadimplencia` |
+| Pendências com fornecedor | Compras | responde | `pendencias-fornecedor-v1.xsd` | `GET /api/v1/pendencias` | `ConsultarPendencias` |
+| Pagamentos da folha | RH | responde | `pagamentos-folha-v1.xsd` | `GET /api/v1/pagamentos-folha` | `ConsultarPagamentosFolha` |
+| Aviso de pagamento | Compras e RH | envia | `aviso-pagamento-v1.xsd` | `GET /api/v1/avisos-pagamento` | `ConsultarAvisosPagamento` |
 
 As consultas são respondidas na hora (ver "Socket"). Os envios vão para a
 caixa de entrada de `/socket` como os outros XMLs, e também podem ser
@@ -345,6 +346,40 @@ login**: a página `/contratos` (linkada na tela de login) lista as mensagens e
 as convenções, e os arquivos saem de `/api/contratos/<arquivo>`. O middleware
 deixa as duas passar; a rota só entrega o que está no catálogo e nenhuma das
 duas lê o banco.
+
+### API REST e SOAP
+
+As mesmas mensagens do socket, para os grupos que preferem HTTP. Nada aqui
+tem regra própria: o JSON vira o XML do contrato e o SOAP já leva o XML, e os
+dois passam pelo mesmo XSD e pelo mesmo código do socket. Tudo em `/api`,
+fora do login (o matcher do middleware não pega `/api`), com CORS liberado,
+porque há sistemas da turma que rodam no navegador.
+
+- `lib/integracao/envios.ts`: recebimento de um movimento, comum aos três
+  caminhos (tamanho, namespace, XSD, caixa de entrada de `/socket`). O
+  socket aceita também o v1; REST e SOAP só os contratos dos setores.
+- `lib/integracao/json.ts`: JSON → XML nos envios e consultas, XML → JSON
+  nas respostas. Os campos têm os nomes do XSD; elemento com atributo vira
+  objeto (`cliente: { nome, documento }`), valores entram como número ou
+  texto e saem como número.
+- `lib/integracao/rest.ts` e `app/api/v1/*`: envios por `POST` (202 na caixa
+  de entrada, 422 com o erro do XSD), consultas por `GET` com os campos na
+  URL (400 inválida, 503 quando a resposta é `<erro>`). `GET /api/v1` lista as
+  rotas.
+- `lib/integracao/soap.ts`, `lib/integracao/wsdl.ts` e `app/api/soap`: SOAP
+  1.1 document/literal. O `soap:Body` leva o elemento do contrato e escolhe a
+  operação (o `SOAPAction` é ignorado); envelope com prefixos no estilo do
+  SoapUI é normalizado antes do XSD. Envio responde `<confirmacaoEnvio>`,
+  consulta responde a resposta do contrato, recusa vira `soap:Fault`. O WSDL
+  (`/api/soap?wsdl`) importa os XSDs por `/api/contratos`, e o
+  `servico-v1.xsd` tem só o que não existe no socket (confirmação de envio e
+  consulta de avisos).
+- **Avisos de pagamento**: por HTTP o Financeiro não tem para onde mandar,
+  então quem integra assim busca (`GET /api/v1/avisos-pagamento?origem=&desde=`
+  ou `ConsultarAvisosPagamento`). A busca lê os avisos da fila do chat
+  (`MensagemChat`), tenham chegado pelo socket ou não.
+- Envios por REST e SOAP aparecem em `/socket` → Recebidos com o remetente
+  `<origem> (REST)` ou `<origem> (SOAP)`, para aprovar como os outros.
 
 ### Cadastros (clientes e fornecedores)
 

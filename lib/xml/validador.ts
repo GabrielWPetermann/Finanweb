@@ -19,7 +19,9 @@ export type SchemaXml =
   | "inadimplencia-v1.xsd"
   | "pendencias-fornecedor-v1.xsd"
   | "pagamentos-folha-v1.xsd"
-  | "aviso-pagamento-v1.xsd";
+  | "aviso-pagamento-v1.xsd"
+  // Mensagens proprias do servico SOAP (lib/integracao/soap.ts).
+  | "servico-v1.xsd";
 
 export const SCHEMA_POR_TIPO: Record<"ENTRADA" | "SAIDA", SchemaXml> = {
   ENTRADA: "entrada-v1.xsd",
