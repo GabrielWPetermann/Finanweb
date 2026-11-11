@@ -355,6 +355,19 @@ dois passam pelo mesmo XSD e pelo mesmo código do socket. Tudo em `/api`,
 fora do login (o matcher do middleware não pega `/api`), com CORS liberado,
 porque há sistemas da turma que rodam no navegador.
 
+- **Chave**: REST e SOAP pedem `Authorization: Bearer <chave>`, a mesma
+  chave do registry, gerada em `/admin/registro`. A `origem` da mensagem tem
+  que ser o setor da chave (403 se não for); nas consultas, sem `origem`, vale
+  o setor. O socket fica de fora: o protocolo da turma não leva chave.
+- **Rate limit** (`lib/integracao/limite.ts`, `lib/integracao/acesso.ts`):
+  janelas de um minuto contadas no banco (`LimiteRequisicao`), porque as
+  funções da Vercel não dividem memória. 60 por setor na API, 120 por IP na
+  busca do registry, 20 por IP sem chave; 429 com `Retry-After` e cabeçalhos
+  `X-RateLimit-*`. Se o banco falhar, a requisição passa. No socket, o
+  ouvinte limita em memória a 30 arquivos por minuto por sistema. Variáveis:
+  `LIMITE_POR_SETOR_MINUTO`, `LIMITE_POR_IP_MINUTO`,
+  `LIMITE_SEM_CHAVE_MINUTO`, `SOCKET_LIMITE_MINUTO`.
+
 - `lib/integracao/envios.ts`: recebimento de um movimento, comum aos três
   caminhos (tamanho, namespace, XSD, caixa de entrada de `/socket`). O
   socket aceita também o v1; REST e SOAP só os contratos dos setores.

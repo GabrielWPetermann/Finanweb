@@ -1,8 +1,10 @@
 // Servico SOAP 1.1: POST com o envelope, GET ?wsdl para o WSDL. A logica fica
-// em lib/integracao/soap.ts; fora do login, como o resto de /api.
+// em lib/integracao/soap.ts; fora do login, como o resto de /api. O POST exige
+// a chave do setor em Authorization, como o REST; o WSDL e publico.
 
+import { autorizarSetor } from "@/lib/integracao/acesso";
 import { CORS } from "@/lib/integracao/rest";
-import { atenderSoap } from "@/lib/integracao/soap";
+import { atenderSoap, falha } from "@/lib/integracao/soap";
 import { montarWsdl } from "@/lib/integracao/wsdl";
 
 const XML = { ...CORS, "Content-Type": "text/xml; charset=utf-8" };
@@ -17,8 +19,11 @@ export function GET(request: Request): Response {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const resposta = await atenderSoap(await request.text());
-  return new Response(resposta.xml, { status: resposta.status, headers: XML });
+  const acesso = await autorizarSetor(request);
+  const resposta = acesso.ok
+    ? await atenderSoap(await request.text(), acesso.setor)
+    : falha(acesso.status === 503 ? "Server" : "Client", acesso.erro, acesso.status);
+  return new Response(resposta.xml, { status: resposta.status, headers: { ...XML, ...acesso.cabecalhos } });
 }
 
 export function OPTIONS(): Response {

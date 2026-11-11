@@ -196,6 +196,14 @@ const SCHEMAS: Record<string, Schema> = {
 
 const json = (schema: Schema, descricao: string) => ({ description: descricao, content: { "application/json": { schema } } });
 const erro = (descricao: string) => json(ref("Erro"), descricao);
+
+// Todo servico de negocio pede a chave do setor e conta no rate limit dele.
+const CHAVE = [{ chaveSetor: [] }];
+const RESPOSTAS_ACESSO = {
+  "401": erro("Sem chave ou chave inválida"),
+  "403": erro("A origem não é o setor da chave"),
+  "429": erro("Limite de requisições por minuto atingido; veja Retry-After"),
+};
 const parametro = (nome: string, obrigatorio: boolean, schema: Schema, descricao?: string) => ({
   name: nome,
   in: "query",
@@ -210,11 +218,14 @@ function envio(resumo: string, schema: string, tag: string) {
     post: {
       tags: [tag],
       summary: resumo,
-      description: "Vai para a caixa de entrada do Financeiro; o lançamento acontece quando ele aprova.",
+      description:
+        "Vai para a caixa de entrada do Financeiro; o lançamento acontece quando ele aprova. A origem do cabeçalho tem que ser o setor da chave.",
+      security: CHAVE,
       requestBody: { required: true, content: { "application/json": { schema: ref(schema) } } },
       responses: {
         "202": json(ref("ConfirmacaoEnvio"), "Recebido, aguardando aprovação"),
         "400": erro("Corpo não é um objeto JSON"),
+        ...RESPOSTAS_ACESSO,
         "422": erro("Fora do contrato (XSD ou regra entre campos)"),
         "503": erro("Falha do lado do Financeiro; tente de novo"),
       },
@@ -227,10 +238,12 @@ function consulta(resumo: string, schema: string, tag: string, parametros: unkno
     get: {
       tags: [tag],
       summary: resumo,
+      security: CHAVE,
       parameters: [...parametros, idConsulta],
       responses: {
         "200": json(ref(schema), "Resposta"),
         "400": erro("Consulta inválida (parâmetro fora do contrato)"),
+        ...RESPOSTAS_ACESSO,
         "503": json(ref(schema), "O Financeiro não conseguiu responder: só id, dataConsulta e erro"),
       },
     },
@@ -246,7 +259,10 @@ export function montarOpenApi(base: string): Schema {
       version: "1.0.0",
       description:
         "Mesmas mensagens do socket e do SOAP, em JSON. O XSD de cada mensagem continua sendo a referência: " +
-        `${base}/contratos. Sem login; CORS liberado.`,
+        `${base}/contratos. Cada setor se identifica com a chave dele (Authorization: Bearer), pedida ao Financeiro, ` +
+        "e só envia e consulta em nome próprio. Rate limit por minuto: 60 por setor, 120 por IP na busca do registry, " +
+        "20 por IP em tentativas sem chave; as respostas trazem X-RateLimit-Limit, X-RateLimit-Remaining e " +
+        "X-RateLimit-Reset, e o 429 traz Retry-After. CORS liberado.",
     },
     servers: [{ url: base }],
     tags: [
@@ -258,31 +274,33 @@ export function montarOpenApi(base: string): Schema {
     paths: {
       "/api/v1/vendas": envio("Envia vendas (contas a receber)", "Venda", "Vendas"),
       "/api/v1/inadimplencia": consulta("Situação de inadimplência de um cliente", "RespostaInadimplencia", "Vendas", [
-        parametro("origem", true, origem),
+        parametro("origem", false, origem, "Sem ela, o setor da chave"),
         parametro("documento", true, documento),
       ]),
       "/api/v1/compras": envio("Envia compras (contas a pagar)", "Compra", "Compras"),
       "/api/v1/pendencias": consulta("Contas em aberto com fornecedores", "RespostaPendencias", "Compras", [
-        parametro("origem", true, origem),
+        parametro("origem", false, origem, "Sem ela, o setor da chave"),
         parametro("documento", false, documento, "Sem ele, todos os fornecedores"),
       ]),
       "/api/v1/folhas": envio("Envia a folha de pagamento", "Folha", "RH"),
       "/api/v1/pagamentos-folha": consulta("Quem das folhas enviadas já foi pago", "RespostaPagamentosFolha", "RH", [
-        parametro("origem", true, origem, "A mesma da folha enviada"),
+        parametro("origem", false, origem, "A mesma da folha enviada; sem ela, o setor da chave"),
         parametro("referencia", false, referencia, "Referência da folha; sem ela, todas"),
         parametro("cpf", false, cpf),
       ]),
       "/api/v1/avisos-pagamento": {
         get: {
           tags: ["Compras", "RH"],
-          summary: "Avisos de pagamento gerados para o setor",
+          summary: "Avisos de pagamento gerados para o setor da chave",
+          security: CHAVE,
           parameters: [
-            parametro("origem", true, origem),
+            parametro("origem", false, origem, "Sem ela, o setor da chave"),
             parametro("desde", false, texto("Exclusivo; use o geradoEm do último aviso lido", { format: "date-time" })),
           ],
           responses: {
             "200": json(obj({ origem, avisos: { type: "array", items: ref("AvisoPagamento") } }), "Avisos, do mais antigo ao mais novo"),
-            "400": erro("origem ou desde inválidos"),
+            "400": erro("desde inválido"),
+            ...RESPOSTAS_ACESSO,
             "503": erro("Falha do lado do Financeiro"),
           },
         },
@@ -300,6 +318,7 @@ export function montarOpenApi(base: string): Schema {
           ],
           responses: {
             "200": json(obj({ total: { type: "integer" }, servicos: { type: "array", items: ref("Servico") } }), "Serviços encontrados"),
+            "429": erro("Limite de requisições por minuto do IP atingido"),
           },
         },
         post: {
@@ -312,6 +331,7 @@ export function montarOpenApi(base: string): Schema {
             "201": json(obj({ ok: { type: "boolean" }, servico: ref("Servico") }), "Publicado"),
             "401": erro("Sem chave ou chave inválida"),
             "422": json(obj({ ok: { type: "boolean" }, erros: { type: "array", items: texto() } }), "Campos inválidos"),
+            "429": erro("Limite de requisições por minuto atingido"),
           },
         },
         delete: {
@@ -327,6 +347,7 @@ export function montarOpenApi(base: string): Schema {
             "200": json(obj({ ok: { type: "boolean" } }), "Removido"),
             "401": erro("Sem chave ou chave inválida"),
             "404": erro("O setor não publicou esse serviço"),
+            "429": erro("Limite de requisições por minuto atingido"),
           },
         },
       },

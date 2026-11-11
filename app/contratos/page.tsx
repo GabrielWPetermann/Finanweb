@@ -136,6 +136,18 @@ export default async function ContratosPage() {
           chamada direto do navegador (CORS liberado).
         </li>
         <li>
+          <strong>Chave</strong>: toda chamada leva a chave do setor no cabeçalho{" "}
+          <code>Authorization: Bearer &lt;chave&gt;</code>. Peçam a chave ao Financeiro (mensagem privada para{" "}
+          <code>#{SOCKET_NOME}</code>); é a mesma do <a href="/registro">Registry</a>. Cada setor envia e consulta
+          só em nome próprio: a <code>origem</code> tem que ser o setor da chave (nas consultas ela pode ser
+          omitida). Sem chave, <code>401</code>; origem de outro setor, <code>403</code>.
+        </li>
+        <li>
+          <strong>Limite</strong>: 60 chamadas por minuto por setor. Acima disso, <code>429</code> com{" "}
+          <code>Retry-After</code> (segundos para tentar de novo). Toda resposta traz{" "}
+          <code>X-RateLimit-Remaining</code>.
+        </li>
+        <li>
           <strong>Envios</strong>: <code>POST</code> com o corpo em JSON (<code>Content-Type: application/json</code>
           ). Os campos têm os nomes do XSD; elemento com atributo vira objeto (
           <code>{`"cliente": { "nome": "...", "documento": "..." }`}</code>,{" "}
@@ -155,12 +167,12 @@ export default async function ContratosPage() {
         </li>
         <li>
           <strong>Avisos de pagamento</strong>: pela API não há como o Financeiro chamar vocês, então vocês buscam:{" "}
-          <code>GET /api/v1/avisos-pagamento?origem=compras&amp;desde=...</code>. Cada aviso traz{" "}
+          <code>GET /api/v1/avisos-pagamento?desde=...</code>. Cada aviso traz{" "}
           <code>geradoEm</code>; use o do último como <code>desde</code> na próxima vez.
         </li>
       </ul>
-      <pre>{`curl -X POST ${base}/api/v1/vendas -H "Content-Type: application/json" -d @entrada-v2.json
-curl "${base}/api/v1/inadimplencia?origem=vendas&documento=12345678909"`}</pre>
+      <pre>{`curl -X POST ${base}/api/v1/vendas -H "Authorization: Bearer <chave>" -H "Content-Type: application/json" -d @entrada-v2.json
+curl -H "Authorization: Bearer <chave>" "${base}/api/v1/inadimplencia?documento=12345678909"`}</pre>
 
       <h3>SOAP</h3>
       <ul>
@@ -173,6 +185,11 @@ curl "${base}/api/v1/inadimplencia?origem=vendas&documento=12345678909"`}</pre>
           <code>&lt;folha&gt;</code> ou a consulta), e a operação é escolhida por ele. Nas consultas, o Body da
           resposta é a resposta do contrato. Nos envios, é um <code>&lt;confirmacaoEnvio&gt;</code> (
           <a href="/api/contratos/servico-v1.xsd">servico-v1.xsd</a>).
+        </li>
+        <li>
+          A chave do setor vai no cabeçalho HTTP <code>Authorization: Bearer &lt;chave&gt;</code>, como no REST, com
+          o mesmo limite de 60 chamadas por minuto. Sem chave, origem de outro setor e limite atingido voltam como{" "}
+          <code>soap:Fault</code> com HTTP 401, 403 e 429.
         </li>
         <li>
           Envio ou consulta recusados voltam como <code>soap:Fault</code> (HTTP 500) com o motivo em{" "}
@@ -218,8 +235,8 @@ curl "${base}/api/v1/inadimplencia?origem=vendas&documento=12345678909"`}</pre>
         <li>
           <strong>Aviso de pagamento</strong>: quando o Financeiro paga ou cancela uma compra ou um salário que
           vocês mandaram, o aviso vai como arquivo pelo socket para o nome de vocês no servidor (a{" "}
-          <code>origem</code> do envio), e fica disponível para busca no REST e no SOAP. Pelo socket, só chega se
-          estiverem conectados. Não precisa responder.
+          <code>origem</code> do envio), e fica disponível para busca no REST e no SOAP, com a chave do setor. Pelo
+          socket, só chega se estiverem conectados. Não precisa responder.
         </li>
         <li>
           <strong>Pagamentos da folha</strong>: a <code>origem</code> da consulta tem que ser a mesma da folha
@@ -238,8 +255,11 @@ curl "${base}/api/v1/inadimplencia?origem=vendas&documento=12345678909"`}</pre>
           <code>/api/v2</code> no REST), e a versão anterior continua aceita.
         </li>
         <li>
-          Dúvidas e sugestões: mensagem privada para <code>#{SOCKET_NOME}</code> no servidor da turma. Ela chega ao
-          chat do Finanweb.
+          Dúvidas, sugestões e pedido de chave: mensagem privada para <code>#{SOCKET_NOME}</code> no servidor da
+          turma. Ela chega ao chat do Finanweb.
+        </li>
+        <li>
+          Pelo socket, cada sistema pode mandar até 30 arquivos (envios e consultas) por minuto.
         </li>
       </ul>
 
