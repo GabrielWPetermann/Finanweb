@@ -57,7 +57,8 @@ export default async function ContratosPage() {
       <p className="subtitulo">
         Mensagens que o Financeiro (Finanweb) troca com os outros setores da turma, definidas a partir do diagrama
         de interoperabilidade. Cada mensagem tem um schema (XSD) e exemplos, e pode ir por três caminhos: socket,
-        REST (JSON) ou SOAP. O conteúdo e as regras são os mesmos nos três. Esta página não precisa de login.{" "}
+        REST (JSON) ou SOAP. O conteúdo e as regras são os mesmos nos três. Os serviços de todos os setores
+        estão no <a href="/registro">Registry</a>. Esta página não precisa de login.{" "}
         <a href="/login">Entrar no Finanweb</a>
       </p>
 

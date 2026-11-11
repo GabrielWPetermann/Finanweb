@@ -470,6 +470,11 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
         <li>
           Exemplos de chamada, JSON e envelope estão em <a href="/contratos">Contratos de integração</a>.
         </li>
+        <li>
+          <strong>Registry</strong>: os serviços de todos os setores ficam em <a href="/registro">/registro</a>{" "}
+          (busca em <code>GET /api/registro</code>). Cada setor publica os seus com uma chave gerada em{" "}
+          <a href="/admin/registro">Registry</a> (admin); os do Financeiro saem do catálogo de contratos.
+        </li>
       </ul>
 
       <h2 id="particularidades">Particularidades</h2>

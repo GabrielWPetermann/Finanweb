@@ -179,3 +179,43 @@ model EstadoOuvinte {
   conectados   String[]
   atualizadoEm DateTime @updatedAt
 }
+
+// Registry da turma (publish-find-bind, ver lib/registro.ts). Cada setor
+// publica os servicos que oferece com a chave que um admin do Finanweb gerou
+// para ele em /admin/registro; qualquer um busca em /api/registro. Os
+// servicos do proprio Financeiro nao ficam aqui: saem do catalogo de
+// contratos (lib/xml/contratos.ts), publicados a cada deploy.
+model ChaveRegistro {
+  // Nome do setor no servidor da turma ("vendas"), o mesmo da origem.
+  setor     String              @id
+  // So o hash: a chave aparece uma vez, quando e gerada.
+  chaveHash String              @unique
+  criadoEm  DateTime            @default(now())
+  servicos  ServicoRegistrado[]
+}
+
+model ServicoRegistrado {
+  id           String        @id @default(cuid())
+  setor        String
+  chave        ChaveRegistro @relation(fields: [setor], references: [setor], onDelete: Cascade)
+  nome         String
+  versao       String
+  // SOCKET | REST | SOAP
+  protocolo    String
+  // URL (REST, SOAP) ou destino no servidor da turma (SOCKET).
+  endpoint     String
+  // REST: metodo HTTP. SOAP: operacao do WSDL.
+  operacao     String?
+  // URL do contrato: XSD, WSDL ou documentacao.
+  contrato     String?
+  // Setor que usa o servico, quando ha um so.
+  consumidor   String?
+  descricao    String        @default("")
+  // ATIVO | DEPRECIADO | DESATIVADO
+  situacao     String        @default("ATIVO")
+  publicadoEm  DateTime      @default(now())
+  atualizadoEm DateTime      @updatedAt
+
+  @@unique([setor, nome, versao, protocolo])
+  @@index([nome])
+}

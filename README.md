@@ -381,6 +381,30 @@ porque há sistemas da turma que rodam no navegador.
 - Envios por REST e SOAP aparecem em `/socket` → Recebidos com o remetente
   `<origem> (REST)` ou `<origem> (SOAP)`, para aprovar como os outros.
 
+### Registry de serviços (publish-find-bind)
+
+Registry da turma em `lib/registro.ts`, `app/api/registro` e na página
+pública `/registro`:
+
+- **Publish**: cada setor publica os serviços que oferece com
+  `POST /api/registro` e `Authorization: Bearer <chave>`. A chave é gerada
+  por um admin em `/admin/registro` e aparece uma vez; no banco
+  (`ChaveRegistro`) fica só o hash SHA-256. A chave do serviço é setor +
+  nome + versão + protocolo: publicar de novo atualiza, versão nova é outro
+  registro. `DELETE /api/registro?nome=&versao=&protocolo=` remove.
+- **Find**: `GET /api/registro` com `setor`, `nome` (parte), `protocolo`,
+  `consumidor` e `situacao`. `DESATIVADO` só aparece pedindo
+  `?situacao=DESATIVADO`.
+- **Bind**: o resultado traz `endpoint`, `operacao` (método HTTP ou operação
+  SOAP) e `contrato` (XSD, WSDL ou documentação); a chamada vai direto ao
+  serviço.
+- Os serviços do Financeiro não ficam no banco: saem do catálogo de
+  contratos (cada mensagem nos três protocolos), então são publicados a cada
+  deploy e não divergem do que o Finanweb atende. `financeiro` e o nome do
+  ouvinte são reservados.
+- Governança em `/admin/registro`: gerar ou trocar a chave de um setor,
+  remover um setor com os serviços dele, desativar ou reativar um serviço.
+
 ### Cadastros (clientes e fornecedores)
 
 Cliente e fornecedor não são mais texto solto: são um cadastro (`Parceiro`,
