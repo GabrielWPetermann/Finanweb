@@ -1,0 +1,21 @@
+{
+  "id": "vendas-000981",
+  "dataConsulta": "2026-10-21",
+  "documento": "12345678909",
+  "situacao": "INADIMPLENTE",
+  "valorEmAtraso": 1430,
+  "titulos": [
+    {
+      "referencia": "V-2026-000071",
+      "valor": 980,
+      "vencimento": "2026-09-30",
+      "diasAtraso": 21
+    },
+    {
+      "referencia": "V-2026-000088",
+      "valor": 450,
+      "vencimento": "2026-10-10",
+      "diasAtraso": 11
+    }
+  ]
+}

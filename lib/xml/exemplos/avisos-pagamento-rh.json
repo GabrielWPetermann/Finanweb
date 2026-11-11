@@ -1,0 +1,20 @@
+{
+  "origem": "rh",
+  "avisos": [
+    {
+      "id": "cmvk7l4ls000vjy07hel2qj8o-mgx2k3f",
+      "dataAviso": "2026-11-05",
+      "origem": "rh",
+      "referencia": "FOLHA-2026-10",
+      "cpf": "52998224725",
+      "situacao": "PAGO",
+      "favorecido": {
+        "nome": "Beatriz Conceição",
+        "documento": "52998224725"
+      },
+      "valor": 4282.4,
+      "dataPagamento": "2026-11-05",
+      "geradoEm": "2026-11-05T10:05:47.120Z"
+    }
+  ]
+}

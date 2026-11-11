@@ -1,0 +1,30 @@
+{
+  "id": "compras-000045",
+  "dataConsulta": "2026-10-21",
+  "pendencias": [
+    {
+      "referencia": "C-2026-000297",
+      "fornecedor": {
+        "nome": "Distribuidora Central LTDA",
+        "documento": "11444777000161"
+      },
+      "categoria": "Mercadorias",
+      "valor": 1200,
+      "vencimento": "2026-10-15"
+    },
+    {
+      "referencia": "C-2026-000310",
+      "fornecedor": {
+        "nome": "Distribuidora Central LTDA",
+        "documento": "11444777000161"
+      },
+      "categoria": "Mercadorias",
+      "valor": 2350,
+      "vencimento": "2026-11-04"
+    }
+  ],
+  "totalizador": {
+    "qtdPendencias": 2,
+    "valorTotal": 3550
+  }
+}

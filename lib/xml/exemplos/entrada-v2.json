@@ -1,0 +1,38 @@
+{
+  "cabecalho": {
+    "empresa": "Empresa LTDA",
+    "cnpj": "12345678000199",
+    "origem": "vendas",
+    "dataArquivo": "2026-10-21",
+    "usuario": "joao.vendas"
+  },
+  "pedidos": [
+    {
+      "referencia": "V-2026-000123",
+      "status": "PENDENTE",
+      "cliente": { "nome": "Ana Souza", "documento": "12345678909" },
+      "categoria": "Vendas",
+      "subtotal": "1500.00",
+      "desconto": { "valor": "75.00", "percentual": "5.00" },
+      "frete": "25.00",
+      "valorTotal": "1450.00",
+      "formaPagamento": "Boleto",
+      "dataPedido": "2026-10-21",
+      "vencimento": "2026-11-20"
+    },
+    {
+      "referencia": "V-2026-000124",
+      "status": "CONFIRMADO",
+      "cliente": { "nome": "Mercado Bom Preço LTDA", "documento": "11222333000181" },
+      "categoria": "Vendas",
+      "subtotal": "320.00",
+      "desconto": { "valor": "0.00", "percentual": "0.00" },
+      "frete": "0.00",
+      "valorTotal": "320.00",
+      "formaPagamento": "Pix",
+      "dataPedido": "2026-10-21",
+      "vencimento": "2026-10-21"
+    }
+  ],
+  "totalizador": { "qtdRegistros": 2, "valorTotalGeral": "1770.00" }
+}

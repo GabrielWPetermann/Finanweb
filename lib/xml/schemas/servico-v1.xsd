@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Schema das mensagens que so existem no servico SOAP do Finanweb
+  (/api/soap?wsdl). As demais operacoes usam os elementos dos contratos
+  (entrada-v2, saida-v2, folha-v1 e as consultas) direto no soap:Body.
+
+    confirmacaoEnvio         resposta de EnviarVenda, EnviarCompra e
+                             EnviarFolha: o arquivo foi para a caixa de
+                             entrada e espera a aprovacao do Financeiro.
+    consultaAvisosPagamento  pergunta de ConsultarAvisosPagamento: os avisos
+                             gerados para a origem depois de <desde>.
+    respostaAvisosPagamento  um <aviso> por aviso, com o <avisoPagamento> do
+                             aviso-pagamento-v1.xsd dentro e o momento em que
+                             foi gerado (use o do ultimo como proximo <desde>).
+
+  Envio ou consulta recusados voltam como soap:Fault.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:s="urn:finanweb:servico:1.0"
+           targetNamespace="urn:finanweb:servico:1.0"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <!-- Nome do setor no servidor da turma, o mesmo da origem dos envios. -->
+  <xs:simpleType name="identificadorSistema">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[a-z][a-z0-9\-]{1,29}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="tipoMovimento">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ENTRADA"/>
+      <xs:enumeration value="SAIDA"/>
+      <xs:enumeration value="FOLHA"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="situacaoEnvio">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="AGUARDANDO_APROVACAO"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:element name="confirmacaoEnvio">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="situacao" type="s:situacaoEnvio"/>
+        <xs:element name="tipo" type="s:tipoMovimento"/>
+        <xs:element name="mensagem" type="xs:string"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="consultaAvisosPagamento">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="origem" type="s:identificadorSistema"/>
+        <xs:element name="desde" type="xs:dateTime" minOccurs="0"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="respostaAvisosPagamento">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="aviso" minOccurs="0" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <!-- avisoPagamento do aviso-pagamento-v1.xsd. -->
+              <xs:any namespace="urn:finanweb:aviso-pagamento:1.0" processContents="lax"/>
+            </xs:sequence>
+            <xs:attribute name="geradoEm" type="xs:dateTime" use="required"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

@@ -11,7 +11,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { CONTRATOS } from "@/lib/xml/contratos";
 import { lerSchema, type SchemaXml } from "@/lib/xml/validador";
 
-const SCHEMAS = new Set<string>(CONTRATOS.map((c) => c.schema));
+// servico-v1.xsd nao e um contrato com setor: e importado pelo WSDL do SOAP.
+const SCHEMAS = new Set<string>([...CONTRATOS.map((c) => c.schema), "servico-v1.xsd"]);
 const EXEMPLOS = new Set<string>(CONTRATOS.flatMap((c) => c.exemplos));
 
 const DIRETORIO_EXEMPLOS = path.join(process.cwd(), "lib", "xml", "exemplos");
@@ -31,7 +32,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
   return new NextResponse(conteudo, {
     headers: {
-      "Content-Type": "application/xml; charset=utf-8",
+      "Content-Type": arquivo.endsWith(".json") ? "application/json; charset=utf-8" : "application/xml; charset=utf-8",
       "Content-Disposition": `attachment; filename="${arquivo}"`,
     },
   });

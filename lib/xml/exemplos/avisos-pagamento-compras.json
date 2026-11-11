@@ -1,0 +1,20 @@
+{
+  "origem": "compras",
+  "avisos": [
+    {
+      "id": "cmvk7l4lh000sjy07e3z6w0ti-mgx2k1a",
+      "dataAviso": "2026-11-04",
+      "origem": "compras",
+      "referencia": "C-2026-000310",
+      "cpf": null,
+      "situacao": "PAGO",
+      "favorecido": {
+        "nome": "Distribuidora Central LTDA",
+        "documento": "11444777000161"
+      },
+      "valor": 2350,
+      "dataPagamento": "2026-11-04",
+      "geradoEm": "2026-11-04T14:32:10.512Z"
+    }
+  ]
+}

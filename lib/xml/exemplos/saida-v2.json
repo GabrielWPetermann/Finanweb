@@ -1,0 +1,32 @@
+{
+  "cabecalho": {
+    "empresa": "Empresa LTDA",
+    "cnpj": "12345678000199",
+    "origem": "compras",
+    "dataArquivo": "2026-10-21",
+    "usuario": "maria.compras"
+  },
+  "despesas": [
+    {
+      "referencia": "C-2026-000310",
+      "status": "PENDENTE",
+      "fornecedor": { "nome": "Distribuidora Central LTDA", "documento": "11444777000161" },
+      "categoria": "Mercadorias",
+      "valor": "2350.00",
+      "formaPagamento": "Boleto",
+      "dataEmissao": "2026-10-21",
+      "vencimento": "2026-11-04"
+    },
+    {
+      "referencia": "C-2026-000311",
+      "status": "PENDENTE",
+      "fornecedor": { "nome": "Papelaria Modelo LTDA", "documento": "45723174000110" },
+      "categoria": "Material de escritório",
+      "valor": "480.90",
+      "formaPagamento": "Pix",
+      "dataEmissao": "2026-10-21",
+      "vencimento": "2026-10-28"
+    }
+  ],
+  "totalizador": { "qtdRegistros": 2, "valorTotalGeral": "2830.90" }
+}

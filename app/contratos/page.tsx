@@ -1,9 +1,13 @@
 // Pagina publica (fora do login, ver o matcher do middleware) com os
-// contratos XML do Financeiro. E o endereco que os outros setores da turma
-// recebem: eles nao tem conta no Finanweb, e daqui baixam o XSD e o exemplo
+// contratos do Financeiro. E o endereco que os outros setores da turma
+// recebem: eles nao tem conta no Finanweb, e daqui baixam o XSD e os exemplos
 // de cada mensagem pela rota /api/contratos. O texto e escrito para eles.
+//
+// Cada mensagem passa por tres caminhos (socket, REST e SOAP), todos com o
+// mesmo contrato: o catalogo em lib/xml/contratos.ts diz o de cada uma.
 
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { SOCKET_HOST, SOCKET_NOME, SOCKET_PORTA } from "@/lib/socket/config";
 import { CONTRATOS, type Contrato } from "@/lib/xml/contratos";
 
@@ -27,19 +31,34 @@ const TIPO: Record<Contrato["sentido"], string> = {
 };
 
 function rotuloExemplo(arquivo: string): string {
-  if (arquivo.endsWith("-consulta.xml")) return "exemplo de consulta";
-  if (arquivo.endsWith("-resposta.xml")) return "exemplo de resposta";
-  return "exemplo";
+  const formato = arquivo.endsWith(".json") ? "JSON" : "XML";
+  if (arquivo.includes("-consulta.")) return `consulta ${formato}`;
+  if (arquivo.includes("-resposta.") || arquivo.startsWith("avisos-")) return `resposta ${formato}`;
+  return `exemplo ${formato}`;
 }
 
-export default function ContratosPage() {
+const ENVELOPE_EXEMPLO = `<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <consultaInadimplencia xmlns="urn:finanweb:inadimplencia:1.0" versao="1.0" id="vendas-000981">
+      <origem>vendas</origem>
+      <documento>12345678909</documento>
+    </consultaInadimplencia>
+  </soap:Body>
+</soap:Envelope>`;
+
+export default async function ContratosPage() {
+  // Endereco deste site, para os exemplos de chamada saírem prontos para usar.
+  const host = (await headers()).get("host") ?? "finanwebsistema.vercel.app";
+  const base = `${host.startsWith("localhost") ? "http" : "https"}://${host}`;
+
   return (
     <main className="content">
       <h1>Contratos de integração</h1>
       <p className="subtitulo">
-        Formatos XML que o Financeiro (Finanweb) troca com os outros setores da turma, definidos a partir do
-        diagrama de interoperabilidade. Cada mensagem tem um schema (XSD) e um XML de exemplo. Esta página não
-        precisa de login. <a href="/login">Entrar no Finanweb</a>
+        Mensagens que o Financeiro (Finanweb) troca com os outros setores da turma, definidas a partir do diagrama
+        de interoperabilidade. Cada mensagem tem um schema (XSD) e exemplos, e pode ir por três caminhos: socket,
+        REST (JSON) ou SOAP. O conteúdo e as regras são os mesmos nos três. Esta página não precisa de login.{" "}
+        <a href="/login">Entrar no Finanweb</a>
       </p>
 
       <h2>O que cada setor troca com o Financeiro</h2>
@@ -51,6 +70,11 @@ export default function ContratosPage() {
               <div key={c.namespace}>
                 <p>
                   <strong>{c.mensagem}</strong> ({TIPO[c.sentido]}). {c.descricao}
+                </p>
+                <p className="subtitulo">
+                  REST: <code>{c.rest}</code>
+                  <br />
+                  SOAP: <code>{c.soap}</code>
                 </p>
                 <div className="linha-botoes">
                   <a href={`/api/contratos/${c.schema}`} className="botao-download">
@@ -69,7 +93,13 @@ export default function ContratosPage() {
         ))}
       </div>
 
-      <h2>Como enviar</h2>
+      <h2>Como integrar</h2>
+      <p>
+        Escolham o caminho que for mais fácil para o sistema de vocês. Envios (venda, compra, folha) entram numa
+        caixa de entrada e só viram lançamento quando alguém do Financeiro aprova. Consultas respondem na hora.
+      </p>
+
+      <h3>Socket</h3>
       <ol>
         <li>Gere o XML seguindo o exemplo da mensagem.</li>
         <li>
@@ -88,14 +118,67 @@ export default function ContratosPage() {
           A resposta volta em privado para quem enviou. Nos envios, uma mensagem no chat dizendo se o arquivo foi
           aceito ou o motivo da recusa. Nas consultas, um arquivo com o mesmo <code>id</code>:{" "}
           <code>resposta-inadimplencia-&lt;id&gt;.xml</code>, <code>resposta-pendencias-&lt;id&gt;.xml</code> ou{" "}
-          <code>resposta-pagamentos-folha-&lt;id&gt;.xml</code>.
-          Consulta inválida volta em texto no chat, com o motivo.
+          <code>resposta-pagamentos-folha-&lt;id&gt;.xml</code>. Consulta inválida volta em texto no chat, com o
+          motivo.
         </li>
         <li>
-          O servidor não guarda mensagens para quem está desconectado: se a resposta de uma consulta não chegar,
-          tente de novo depois.
+          O servidor não guarda mensagens para quem está desconectado: se a resposta de uma consulta ou um aviso
+          não chegar, consultem de novo depois (ou pela API).
         </li>
       </ol>
+
+      <h3>REST (JSON)</h3>
+      <ul>
+        <li>
+          Endereço: <code>{base}/api/v1</code>. Um <code>GET</code> nele lista as rotas. Aceita chamada direto do
+          navegador (CORS liberado).
+        </li>
+        <li>
+          <strong>Envios</strong>: <code>POST</code> com o corpo em JSON (<code>Content-Type: application/json</code>
+          ). Os campos têm os nomes do XSD; elemento com atributo vira objeto (
+          <code>{`"cliente": { "nome": "...", "documento": "..." }`}</code>,{" "}
+          <code>{`"desconto": { "valor": "75.00", "percentual": "5.00" }`}</code>), atributos de registro viram
+          campos (<code>referencia</code>, <code>status</code>), e listas viram arrays (<code>pedidos</code>,{" "}
+          <code>despesas</code>, <code>funcionarios</code>). Valores podem ir como número ou texto. Veja o exemplo
+          JSON de cada envio acima. Resposta <code>202</code> com{" "}
+          <code>{`{ "ok": true, "situacao": "AGUARDANDO_APROVACAO" }`}</code>, ou <code>422</code> com{" "}
+          <code>{`{ "ok": false, "erro": "..." }`}</code> dizendo o campo fora do contrato.
+        </li>
+        <li>
+          <strong>Consultas</strong>: <code>GET</code> com os campos da consulta na URL (<code>origem</code>,{" "}
+          <code>documento</code>, <code>referencia</code>, <code>cpf</code>, e <code>id</code> se quiserem
+          escolher). A resposta tem os campos do XSD em JSON, com valores como número. Consulta inválida volta{" "}
+          <code>400</code>; resposta com <code>erro</code> (Financeiro sem conseguir consultar) volta{" "}
+          <code>503</code>.
+        </li>
+        <li>
+          <strong>Avisos de pagamento</strong>: pela API não há como o Financeiro chamar vocês, então vocês buscam:{" "}
+          <code>GET /api/v1/avisos-pagamento?origem=compras&amp;desde=...</code>. Cada aviso traz{" "}
+          <code>geradoEm</code>; use o do último como <code>desde</code> na próxima vez.
+        </li>
+      </ul>
+      <pre>{`curl -X POST ${base}/api/v1/vendas -H "Content-Type: application/json" -d @entrada-v2.json
+curl "${base}/api/v1/inadimplencia?origem=vendas&documento=12345678909"`}</pre>
+
+      <h3>SOAP</h3>
+      <ul>
+        <li>
+          WSDL: <a href={`${base}/api/soap?wsdl`}>{`${base}/api/soap?wsdl`}</a>. Endereço do serviço:{" "}
+          <code>{base}/api/soap</code>, SOAP 1.1, document/literal.
+        </li>
+        <li>
+          O <code>soap:Body</code> leva o mesmo XML que iria pelo socket (o <code>&lt;movimento&gt;</code>, a{" "}
+          <code>&lt;folha&gt;</code> ou a consulta), e a operação é escolhida por ele. Nas consultas, o Body da
+          resposta é a resposta do contrato. Nos envios, é um <code>&lt;confirmacaoEnvio&gt;</code> (
+          <a href="/api/contratos/servico-v1.xsd">servico-v1.xsd</a>).
+        </li>
+        <li>
+          Envio ou consulta recusados voltam como <code>soap:Fault</code> (HTTP 500) com o motivo em{" "}
+          <code>faultstring</code>. Avisos de pagamento: operação <code>ConsultarAvisosPagamento</code>, com{" "}
+          <code>origem</code> e <code>desde</code>.
+        </li>
+      </ul>
+      <pre>{ENVELOPE_EXEMPLO}</pre>
 
       <h2>Regras comuns</h2>
       <ul>
@@ -108,8 +191,8 @@ export default function ContratosPage() {
           <code>AAAA-MM-DD</code> (<code>2026-10-21</code>).
         </li>
         <li>
-          <strong>Origem</strong>: nos envios, o nome do setor no servidor da turma, em minúsculas (
-          <code>vendas</code>, <code>compras</code>, <code>rh</code>).
+          <strong>Origem</strong>: nos envios e consultas, o nome do setor no servidor da turma, em minúsculas (
+          <code>vendas</code>, <code>compras</code>, <code>rh</code>). Vale o mesmo nome no REST e no SOAP.
         </li>
         <li>
           <strong>Referência</strong>: o identificador do registro no sistema de vocês. O par origem + referência
@@ -123,8 +206,8 @@ export default function ContratosPage() {
         </li>
         <li>
           <strong>Consultas</strong>: vocês escolhem o <code>id</code> da consulta, e a resposta volta com o mesmo{" "}
-          <code>id</code>. Se o Financeiro não conseguir responder, a resposta traz <code>&lt;erro&gt;</code> no
-          lugar do resultado.
+          <code>id</code> (no REST ele é opcional). Se o Financeiro não conseguir responder, a resposta traz{" "}
+          <code>erro</code> no lugar do resultado.
         </li>
         <li>
           <strong>Inadimplente</strong>: cliente com conta a receber em aberto e vencimento anterior à data da
@@ -132,9 +215,9 @@ export default function ContratosPage() {
         </li>
         <li>
           <strong>Aviso de pagamento</strong>: quando o Financeiro paga ou cancela uma compra ou um salário que
-          vocês mandaram, ele envia o aviso como arquivo para o nome de vocês no servidor, que é a{" "}
-          <code>origem</code> do envio. Só chega se estiverem conectados; quem perdeu confere pela consulta de
-          pendências ou de pagamentos da folha. Não precisa responder.
+          vocês mandaram, o aviso vai como arquivo pelo socket para o nome de vocês no servidor (a{" "}
+          <code>origem</code> do envio), e fica disponível para busca no REST e no SOAP. Pelo socket, só chega se
+          estiverem conectados. Não precisa responder.
         </li>
         <li>
           <strong>Pagamentos da folha</strong>: a <code>origem</code> da consulta tem que ser a mesma da folha
@@ -149,8 +232,8 @@ export default function ContratosPage() {
           Os formatos são definidos pelo Financeiro, que é quem recebe ou responde cada mensagem, como numa API.
         </li>
         <li>
-          Depois de combinado, um formato só muda com versão nova (outro número no namespace), e a versão anterior
-          continua aceita.
+          Depois de combinado, um formato só muda com versão nova (outro número no namespace, ou{" "}
+          <code>/api/v2</code> no REST), e a versão anterior continua aceita.
         </li>
         <li>
           Dúvidas e sugestões: mensagem privada para <code>#{SOCKET_NOME}</code> no servidor da turma. Ela chega ao
@@ -165,7 +248,9 @@ export default function ContratosPage() {
             <th>Mensagem</th>
             <th>Setor</th>
             <th>Tipo</th>
-            <th>Namespace do elemento raiz</th>
+            <th>Namespace (socket)</th>
+            <th>REST</th>
+            <th>SOAP</th>
           </tr>
         </thead>
         <tbody>
@@ -176,6 +261,12 @@ export default function ContratosPage() {
               <td>{TIPO[c.sentido]}</td>
               <td>
                 <code>{c.namespace}</code>
+              </td>
+              <td>
+                <code>{c.rest.split("?")[0]}</code>
+              </td>
+              <td>
+                <code>{c.soap}</code>
               </td>
             </tr>
           ))}
