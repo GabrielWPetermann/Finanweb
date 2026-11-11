@@ -131,8 +131,9 @@ export default async function ContratosPage() {
       <h3>REST (JSON)</h3>
       <ul>
         <li>
-          Endereço: <code>{base}/api/v1</code>. Um <code>GET</code> nele lista as rotas. Aceita chamada direto do
-          navegador (CORS liberado).
+          Endereço: <code>{base}/api/v1</code>. Um <code>GET</code> nele lista as rotas, e o contrato completo
+          está em OpenAPI 3: <a href={`${base}/api/v1/openapi.json`}>{`${base}/api/v1/openapi.json`}</a>. Aceita
+          chamada direto do navegador (CORS liberado).
         </li>
         <li>
           <strong>Envios</strong>: <code>POST</code> com o corpo em JSON (<code>Content-Type: application/json</code>

@@ -365,7 +365,8 @@ porque há sistemas da turma que rodam no navegador.
 - `lib/integracao/rest.ts` e `app/api/v1/*`: envios por `POST` (202 na caixa
   de entrada, 422 com o erro do XSD), consultas por `GET` com os campos na
   URL (400 inválida, 503 quando a resposta é `<erro>`). `GET /api/v1` lista as
-  rotas.
+  rotas, e o contrato da API está em OpenAPI 3 em `/api/v1/openapi.json`
+  (`lib/integracao/openapi.ts`), com os padrões dos XSDs.
 - `lib/integracao/soap.ts`, `lib/integracao/wsdl.ts` e `app/api/soap`: SOAP
   1.1 document/literal. O `soap:Body` leva o elemento do contrato e escolhe a
   operação (o `SOAPAction` é ignorado); envelope com prefixos no estilo do
