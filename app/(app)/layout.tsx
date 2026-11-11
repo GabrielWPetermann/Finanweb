@@ -28,6 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <Link href="/admin/usuarios">Usuários</Link>
               <Link href="/admin/categorias">Categorias</Link>
               <Link href="/admin/cadastros">Cadastros</Link>
+              <Link href="/admin/registro">Registry</Link>
             </>
           )}
         </nav>

@@ -18,6 +18,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // contratos: pagina publica com os XSDs para os outros setores da turma.
-  matcher: ["/((?!login|solicitar-cadastro|contratos|api|_next/static|_next/image|favicon.ico).*)"],
+  // contratos e registro: paginas publicas para os outros setores da turma
+  // (os XSDs e o registry de servicos).
+  matcher: ["/((?!login|solicitar-cadastro|contratos|registro|api|_next/static|_next/image|favicon.ico).*)"],
 };

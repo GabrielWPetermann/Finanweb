@@ -365,7 +365,8 @@ porque há sistemas da turma que rodam no navegador.
 - `lib/integracao/rest.ts` e `app/api/v1/*`: envios por `POST` (202 na caixa
   de entrada, 422 com o erro do XSD), consultas por `GET` com os campos na
   URL (400 inválida, 503 quando a resposta é `<erro>`). `GET /api/v1` lista as
-  rotas.
+  rotas, e o contrato da API está em OpenAPI 3 em `/api/v1/openapi.json`
+  (`lib/integracao/openapi.ts`), com os padrões dos XSDs.
 - `lib/integracao/soap.ts`, `lib/integracao/wsdl.ts` e `app/api/soap`: SOAP
   1.1 document/literal. O `soap:Body` leva o elemento do contrato e escolhe a
   operação (o `SOAPAction` é ignorado); envelope com prefixos no estilo do
@@ -380,6 +381,30 @@ porque há sistemas da turma que rodam no navegador.
   (`MensagemChat`), tenham chegado pelo socket ou não.
 - Envios por REST e SOAP aparecem em `/socket` → Recebidos com o remetente
   `<origem> (REST)` ou `<origem> (SOAP)`, para aprovar como os outros.
+
+### Registry de serviços (publish-find-bind)
+
+Registry da turma em `lib/registro.ts`, `app/api/registro` e na página
+pública `/registro`:
+
+- **Publish**: cada setor publica os serviços que oferece com
+  `POST /api/registro` e `Authorization: Bearer <chave>`. A chave é gerada
+  por um admin em `/admin/registro` e aparece uma vez; no banco
+  (`ChaveRegistro`) fica só o hash SHA-256. A chave do serviço é setor +
+  nome + versão + protocolo: publicar de novo atualiza, versão nova é outro
+  registro. `DELETE /api/registro?nome=&versao=&protocolo=` remove.
+- **Find**: `GET /api/registro` com `setor`, `nome` (parte), `protocolo`,
+  `consumidor` e `situacao`. `DESATIVADO` só aparece pedindo
+  `?situacao=DESATIVADO`.
+- **Bind**: o resultado traz `endpoint`, `operacao` (método HTTP ou operação
+  SOAP) e `contrato` (XSD, WSDL ou documentação); a chamada vai direto ao
+  serviço.
+- Os serviços do Financeiro não ficam no banco: saem do catálogo de
+  contratos (cada mensagem nos três protocolos), então são publicados a cada
+  deploy e não divergem do que o Finanweb atende. `financeiro` e o nome do
+  ouvinte são reservados.
+- Governança em `/admin/registro`: gerar ou trocar a chave de um setor,
+  remover um setor com os serviços dele, desativar ou reativar um serviço.
 
 ### Cadastros (clientes e fornecedores)
 

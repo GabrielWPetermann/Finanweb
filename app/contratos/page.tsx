@@ -57,7 +57,8 @@ export default async function ContratosPage() {
       <p className="subtitulo">
         Mensagens que o Financeiro (Finanweb) troca com os outros setores da turma, definidas a partir do diagrama
         de interoperabilidade. Cada mensagem tem um schema (XSD) e exemplos, e pode ir por três caminhos: socket,
-        REST (JSON) ou SOAP. O conteúdo e as regras são os mesmos nos três. Esta página não precisa de login.{" "}
+        REST (JSON) ou SOAP. O conteúdo e as regras são os mesmos nos três. Os serviços de todos os setores
+        estão no <a href="/registro">Registry</a>. Esta página não precisa de login.{" "}
         <a href="/login">Entrar no Finanweb</a>
       </p>
 
@@ -130,8 +131,9 @@ export default async function ContratosPage() {
       <h3>REST (JSON)</h3>
       <ul>
         <li>
-          Endereço: <code>{base}/api/v1</code>. Um <code>GET</code> nele lista as rotas. Aceita chamada direto do
-          navegador (CORS liberado).
+          Endereço: <code>{base}/api/v1</code>. Um <code>GET</code> nele lista as rotas, e o contrato completo
+          está em OpenAPI 3: <a href={`${base}/api/v1/openapi.json`}>{`${base}/api/v1/openapi.json`}</a>. Aceita
+          chamada direto do navegador (CORS liberado).
         </li>
         <li>
           <strong>Envios</strong>: <code>POST</code> com o corpo em JSON (<code>Content-Type: application/json</code>

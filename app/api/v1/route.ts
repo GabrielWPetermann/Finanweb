@@ -8,7 +8,9 @@ export function GET(request: Request): Response {
   const base = new URL(request.url).origin;
   return json({
     documentacao: `${base}/contratos`,
+    openapi: `${base}/api/v1/openapi.json`,
     wsdl: `${base}/api/soap?wsdl`,
+    registro: `${base}/api/registro`,
     rotas: CONTRATOS.map((c) => {
       const [metodo, caminho] = c.rest.split(" ");
       return {
