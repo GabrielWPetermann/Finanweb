@@ -5,6 +5,9 @@ import { Conectados } from "./conectados";
 import { EnviarForm } from "./enviar-form";
 import { ListaRecebidos, type LinhaRecebido } from "./lista-recebidos";
 
+// Importar varios arquivos de uma vez: um por vez, cada um com XSD, Blob e banco.
+export const maxDuration = 60;
+
 function formatarTamanho(bytes: number): string {
   return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
 }

@@ -10,7 +10,7 @@ import { aguardarEnvio, enfileirarArquivo } from "@/lib/socket/chat";
 import { SOCKET_NOME } from "@/lib/socket/config";
 import { normalizarDestino } from "@/lib/socket/protocolo";
 import { lerConectados, resolverDestinatarios, type EstadoConectados } from "@/lib/socket/estado";
-import { descartarRecebido, lerRecebido } from "@/lib/socket/caixa-entrada";
+import { descartarRecebido, lerRecebido, listarRecebidos } from "@/lib/socket/caixa-entrada";
 
 export interface ResultadoEnvio {
   ok: boolean;
@@ -109,41 +109,71 @@ export async function conectadosAction(): Promise<EstadoConectados | null> {
   return lerConectados();
 }
 
-export async function importarRecebidoAction(
-  _estadoAnterior: ResultadoImportacao,
-  formData: FormData
-): Promise<ResultadoImportacao> {
-  const usuario = await getUsuarioAtual();
-  if (!usuario) return { ok: false, erro: SESSAO_EXPIRADA };
-
-  const pathname = String(formData.get("pathname") ?? "");
-  const recebido = await lerRecebido(pathname);
-  if (!recebido) {
-    return { ok: false, erro: "Arquivo não encontrado na caixa de entrada (já importado ou descartado?)." };
-  }
-
-  // Mesmo caminho da tela de integrar: XSD, parser, Blob e banco. Quem
-  // aprova aparece no Historico como autor da importacao.
-  const resultado = await importarMovimento(
-    recebido.arquivo.tipo,
-    recebido.arquivo.nomeArquivo,
-    recebido.conteudo,
-    usuario.id
-  );
-
-  // Importado sai da caixa; com erro fica, para poder ser descartado.
-  if (resultado.ok) {
-    await descartarRecebido(pathname);
-    revalidatePath("/socket");
-    revalidarTelasDeLancamento();
-  }
-  return resultado;
+/** Resultado de cada arquivo de uma aprovacao (um ou varios marcados). */
+export interface ResultadoRecebido extends ResultadoImportacao {
+  nomeArquivo: string;
 }
 
-export async function descartarRecebidoAction(formData: FormData) {
+export interface ResultadoRecebidos {
+  itens: ResultadoRecebido[];
+  erro?: string;
+}
+
+/**
+ * Importa os arquivos escolhidos da caixa de entrada (campo pathname, um ou
+ * varios). Um por vez, do mais antigo para o mais novo: dois envios do mesmo
+ * setor podem falar das mesmas referencias, e o reenvio tem que vir depois.
+ * Cada arquivo vale por si: um recusado nao impede os outros.
+ */
+export async function importarRecebidosAction(
+  _estadoAnterior: ResultadoRecebidos,
+  formData: FormData
+): Promise<ResultadoRecebidos> {
+  const usuario = await getUsuarioAtual();
+  if (!usuario) return { itens: [], erro: SESSAO_EXPIRADA };
+
+  const escolhidos = new Set(formData.getAll("pathname").map(String).filter(Boolean));
+  if (escolhidos.size === 0) return { itens: [], erro: "Marque pelo menos um arquivo." };
+
+  const naCaixa = (await listarRecebidos())
+    .filter((arquivo) => escolhidos.has(arquivo.pathname))
+    .sort((a, b) => a.recebidoEm.getTime() - b.recebidoEm.getTime());
+
+  const itens: ResultadoRecebido[] = [];
+  for (const arquivo of naCaixa) {
+    const recebido = await lerRecebido(arquivo.pathname);
+    if (!recebido) {
+      itens.push({ ok: false, nomeArquivo: arquivo.nomeArquivo, erro: "Arquivo não encontrado na caixa de entrada." });
+      continue;
+    }
+    // Mesmo caminho da tela de integrar: XSD, parser, Blob e banco. Quem
+    // aprova aparece no Historico como autor da importacao.
+    const resultado = await importarMovimento(
+      recebido.arquivo.tipo,
+      recebido.arquivo.nomeArquivo,
+      recebido.conteudo,
+      usuario.id
+    );
+    // Importado sai da caixa; com erro fica, para poder ser descartado.
+    if (resultado.ok) await descartarRecebido(arquivo.pathname);
+    itens.push({ ...resultado, nomeArquivo: arquivo.nomeArquivo });
+  }
+
+  const faltando = escolhidos.size - naCaixa.length;
+  revalidatePath("/socket");
+  if (itens.some((i) => i.ok)) revalidarTelasDeLancamento();
+  return {
+    itens,
+    erro: faltando > 0 ? `${faltando} arquivo(s) já não estavam na caixa de entrada (importados ou descartados?).` : undefined,
+  };
+}
+
+/** Descarta da caixa de entrada os arquivos escolhidos, sem importar. */
+export async function descartarRecebidosAction(formData: FormData) {
   const usuario = await getUsuarioAtual();
   if (!usuario) return;
 
-  await descartarRecebido(String(formData.get("pathname") ?? ""));
+  const pathnames = formData.getAll("pathname").map(String).filter(Boolean);
+  await Promise.all(pathnames.map((pathname) => descartarRecebido(pathname)));
   revalidatePath("/socket");
 }
