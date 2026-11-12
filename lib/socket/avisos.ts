@@ -10,6 +10,7 @@
 
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { entregarAoSetor } from "@/lib/integracao/entrega";
 import { enfileirarArquivo } from "@/lib/socket/chat";
 import { SOCKET_NOME } from "@/lib/socket/config";
 import {
@@ -67,14 +68,17 @@ export function montarAvisoPagamento(
 }
 
 /**
- * Poe o aviso na fila do ouvinte, se a mudanca de status pedir um. Nunca
- * lanca: o pagamento ja foi gravado, e um aviso que nao sai nao pode desfazer
- * isso.
+ * Poe o aviso na fila do ouvinte e, se o setor publicou no registry um
+ * servico que recebe avisos e o Finanweb tem a chave dele, entrega tambem por
+ * HTTP. O setor recebe pelos dois caminhos com o mesmo id e trata o repetido.
+ * Nunca lanca: o pagamento ja foi gravado, e um aviso que nao sai nao pode
+ * desfazer isso.
  */
 export async function avisarPagamento(statusAnterior: string, despesa: DespesaAviso, autor: string): Promise<void> {
   try {
     const aviso = montarAvisoPagamento(statusAnterior, despesa);
-    if (!aviso || despesa.origem?.toLowerCase() === SOCKET_NOME.toLowerCase()) return;
+    const origem = despesa.origem;
+    if (!aviso || !origem || origem.toLowerCase() === SOCKET_NOME.toLowerCase()) return;
 
     // Origem ou referencia gravadas fora do contrato: melhor nao mandar do que
     // mandar um arquivo que o setor recusaria.
@@ -83,7 +87,14 @@ export async function avisarPagamento(statusAnterior: string, despesa: DespesaAv
       console.error(`aviso fora do XSD (${aviso.nomeArquivo}): ${erros.join(" ")}`);
       return;
     }
-    await enfileirarArquivo(autor, aviso.nomeArquivo, Buffer.from(aviso.xml, "utf8"), despesa.origem);
+    await enfileirarArquivo(autor, aviso.nomeArquivo, Buffer.from(aviso.xml, "utf8"), origem);
+
+    const entrega = await entregarAoSetor(origem, "aviso de pagamento", aviso.xml);
+    console.log(
+      entrega.entregue
+        ? `aviso ${aviso.nomeArquivo} entregue a ${origem} por HTTP (${entrega.status})`
+        : `aviso ${aviso.nomeArquivo} sem entrega por HTTP: ${entrega.motivo}`
+    );
   } catch (erro) {
     console.error(erro);
   }
