@@ -6,6 +6,7 @@ import { parseCadastroCsv } from "@/lib/parsers/cadastro";
 import { importarParceiroCadastro } from "@/lib/parceiros";
 import { MAX_BYTES_XML } from "@/lib/xml/validador";
 import { formatarErrosParser, importarMovimento, type ResultadoImportacao } from "@/lib/importacao";
+import { revalidarTelasDeLancamento } from "@/lib/revalidar";
 
 export type { ResultadoImportacao };
 
@@ -85,5 +86,7 @@ export async function importarAction(
     };
   }
 
-  return importarMovimento(tipo, arquivo.name, conteudo, usuario.id);
+  const resultado = await importarMovimento(tipo, arquivo.name, conteudo, usuario.id);
+  if (resultado.ok) revalidarTelasDeLancamento();
+  return resultado;
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getUsuarioAtual } from "@/lib/auth";
 import { gerarMovimentoXml } from "@/lib/exportacao-xml";
 import { importarMovimento, type ResultadoImportacao } from "@/lib/importacao";
+import { revalidarTelasDeLancamento } from "@/lib/revalidar";
 import { MAX_BYTES_XML } from "@/lib/xml/validador";
 import { aguardarEnvio, enfileirarArquivo } from "@/lib/socket/chat";
 import { SOCKET_NOME } from "@/lib/socket/config";
@@ -134,6 +135,7 @@ export async function importarRecebidoAction(
   if (resultado.ok) {
     await descartarRecebido(pathname);
     revalidatePath("/socket");
+    revalidarTelasDeLancamento();
   }
   return resultado;
 }
