@@ -122,3 +122,53 @@ export async function excluirPagamentoAction(formData: FormData) {
   revalidatePath("/pagamentos");
   revalidatePath("/");
 }
+
+// Avisos em paralelo, poucos de cada vez: um lote de 30 compras em sequencia,
+// cada uma com a entrega HTTP ao setor, passaria do tempo da funcao.
+const AVISOS_SIMULTANEOS = 5;
+
+/**
+ * Baixa de uma vez os pagamentos escolhidos num lote: so os que ainda estao
+ * PENDENTE mudam (CONFIRMADO = pago, CANCELADO). Cada despesa vinda de outro
+ * setor gera o aviso de pagamento, como na edicao de um por um.
+ */
+async function baixarPagamentos(formData: FormData, status: "CONFIRMADO" | "CANCELADO") {
+  const usuario = await getUsuarioAtual();
+  if (!usuario) return;
+
+  const ids = formData.getAll("id").map(String).filter(Boolean);
+  if (ids.length === 0) return;
+
+  // So muda o que continua pendente: outra pessoa pode ter editado no meio.
+  const pendentes = { id: { in: ids }, status: { equals: "PENDENTE", mode: "insensitive" as const } };
+  const despesas = await prisma.despesaAgrupada.findMany({
+    where: pendentes,
+    include: { fornecedor: { select: { nome: true, documento: true } } },
+  });
+  if (despesas.length === 0) return;
+
+  const { count } = await prisma.despesaAgrupada.updateMany({
+    where: { ...pendentes, id: { in: despesas.map((d) => d.id) } },
+    data: { status },
+  });
+  console.log(`${count} pagamento(s) ${status} em lote por ${usuario.username}`);
+
+  for (let i = 0; i < despesas.length; i += AVISOS_SIMULTANEOS) {
+    await Promise.all(
+      despesas
+        .slice(i, i + AVISOS_SIMULTANEOS)
+        .map((d) => avisarPagamento(d.status, { ...d, status }, usuario.username))
+    );
+  }
+
+  revalidatePath("/pagamentos");
+  revalidatePath("/");
+}
+
+export async function confirmarPagamentosAction(formData: FormData) {
+  await baixarPagamentos(formData, "CONFIRMADO");
+}
+
+export async function cancelarPagamentosAction(formData: FormData) {
+  await baixarPagamentos(formData, "CANCELADO");
+}
