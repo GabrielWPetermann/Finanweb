@@ -14,7 +14,7 @@ export type Acesso =
   | { ok: false; status: 401 | 429 | 503; erro: string; cabecalhos: Record<string, string> };
 
 export const SEM_CHAVE =
-  'Envie a chave do setor no cabeçalho "Authorization: Bearer <chave>". Peça a chave ao Financeiro (mensagem privada para #finanweb).';
+  'Envie a chave do setor no cabeçalho "Authorization: Bearer <chave>" (ou "X-API-Key: <chave>"). Peça a chave ao Financeiro (mensagem privada para #finanweb).';
 
 function excedeu(limite: number, reiniciaEm: Date): string {
   const segundos = Math.max(1, Math.ceil((reiniciaEm.getTime() - Date.now()) / 1000));

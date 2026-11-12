@@ -178,6 +178,15 @@ const SCHEMAS: Record<string, Schema> = {
     publicadoEm: { ...texto(undefined, { format: "date-time" }), nullable: true },
     atualizadoEm: { ...texto(undefined, { format: "date-time" }), nullable: true },
   }),
+  RespostaIntegracao: obj({
+    sucesso: { type: "boolean" },
+    codigo: texto(undefined, { example: "CONSULTA_RESPONDIDA" }),
+    mensagem: texto(),
+    dados: { type: "object", nullable: true, description: "Nas consultas, { documento } com a resposta no mesmo envelope" },
+    erro: { ...texto(), nullable: true },
+    requisicao_id: texto(),
+    timestamp: texto(undefined, { format: "date-time" }),
+  }),
   PublicacaoServico: obj(
     {
       nome: texto(undefined, { maxLength: 120 }),
@@ -305,6 +314,45 @@ export function montarOpenApi(base: string): Schema {
           },
         },
       },
+      "/api/v1/integracoes/financeiro": {
+        post: {
+          tags: ["Vendas", "Compras", "RH"],
+          summary: "Qualquer mensagem no formato da API de interoperabilidade (envelope documento)",
+          description:
+            "Mesmas mensagens dos outros caminhos, no envelope { documento: { raiz, namespace, atributos, dados } } " +
+            'usado pela API de Vendas (elemento com atributo vira { "@atributos": {...}, "#texto": "..." }). ' +
+            "A chave pode ir em X-API-Key. Consultas respondem 200 com a resposta em dados.documento; envios, 202.",
+          security: CHAVE,
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: obj({
+                  documento: obj(
+                    {
+                      raiz: texto(undefined, { example: "consultaInadimplencia" }),
+                      namespace: { ...texto(undefined, { example: "urn:finanweb:inadimplencia:1.0" }), nullable: true },
+                      atributos: { type: "object", additionalProperties: { type: "string" } },
+                      dados: { type: "object" },
+                    },
+                    ["raiz", "dados"]
+                  ),
+                }),
+              },
+            },
+          },
+          responses: {
+            "200": json(ref("RespostaIntegracao"), "Consulta respondida (CONSULTA_RESPONDIDA)"),
+            "202": json(ref("RespostaIntegracao"), "Envio recebido (DOCUMENTO_RECEBIDO)"),
+            "400": json(ref("RespostaIntegracao"), "FORMATO_INVALIDO ou DOCUMENTO_INVALIDO"),
+            "401": json(ref("RespostaIntegracao"), "NAO_AUTENTICADO"),
+            "403": json(ref("RespostaIntegracao"), "ORIGEM_NAO_PERMITIDA"),
+            "422": json(ref("RespostaIntegracao"), "DOCUMENTO_FORA_DO_CONTRATO ou DOCUMENTO_NAO_SUPORTADO"),
+            "429": json(ref("RespostaIntegracao"), "LIMITE_EXCEDIDO"),
+            "503": json(ref("RespostaIntegracao"), "FINANCEIRO_INDISPONIVEL"),
+          },
+        },
+      },
       "/api/registro": {
         get: {
           tags: ["Registry"],
@@ -355,7 +403,11 @@ export function montarOpenApi(base: string): Schema {
     components: {
       schemas: SCHEMAS,
       securitySchemes: {
-        chaveSetor: { type: "http", scheme: "bearer", description: "Chave do setor, gerada pelo Financeiro em /admin/registro" },
+        chaveSetor: {
+          type: "http",
+          scheme: "bearer",
+          description: "Chave do setor, gerada pelo Financeiro em /admin/registro. Também aceita no cabeçalho X-API-Key.",
+        },
       },
     },
   };

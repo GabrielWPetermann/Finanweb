@@ -14,11 +14,11 @@ import { responderConsulta } from "@/lib/socket/consultas";
 
 // Os sistemas dos outros grupos podem rodar no navegador (o de Compras roda):
 // sem CORS, o navegador bloqueia a chamada. SOAPAction e o cabecalho que os
-// clientes SOAP mandam; Authorization leva a chave do registry.
+// clientes SOAP mandam; Authorization (ou X-API-Key) leva a chave do setor.
 export const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, SOAPAction, Authorization",
+  "Access-Control-Allow-Headers": "Content-Type, SOAPAction, Authorization, X-API-Key",
 };
 
 export function json(corpo: unknown, status = 200, cabecalhos: Record<string, string> = {}): Response {

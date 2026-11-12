@@ -65,9 +65,14 @@ export function setorReservado(setor: string): boolean {
   return setor === SETOR_FINANCEIRO || setor === SOCKET_NOME.toLowerCase();
 }
 
-/** "Authorization: Bearer <chave>" -> setor dono da chave, ou null. */
+/**
+ * "Authorization: Bearer <chave>" ou "X-API-Key: <chave>" (como manda a API
+ * de interoperabilidade de Vendas) -> setor dono da chave, ou null.
+ */
 export async function setorDaRequisicao(request: Request): Promise<string | null> {
-  const chave = /^Bearer\s+(\S+)$/i.exec(request.headers.get("authorization") ?? "")?.[1];
+  const chave =
+    /^Bearer\s+(\S+)$/i.exec(request.headers.get("authorization") ?? "")?.[1] ??
+    request.headers.get("x-api-key")?.trim();
   if (!chave) return null;
   const registro = await prisma.chaveRegistro.findUnique({ where: { chaveHash: hash(chave) } });
   return registro?.setor ?? null;

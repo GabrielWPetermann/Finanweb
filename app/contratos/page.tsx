@@ -143,6 +143,14 @@ export default async function ContratosPage() {
           omitida). Sem chave, <code>401</code>; origem de outro setor, <code>403</code>.
         </li>
         <li>
+          <strong>Formato da API de interoperabilidade</strong>: quem usa a API de Vendas (
+          <code>/api/v1/integracoes/enviar</code>) pode mandar qualquer mensagem para{" "}
+          <code>POST {base}/api/v1/integracoes/financeiro</code>, no envelope{" "}
+          <code>{`{ "documento": { "raiz", "namespace", "atributos", "dados" } }`}</code> e com a chave em{" "}
+          <code>X-API-Key</code>. O conteúdo é o mesmo XML do contrato; a resposta vem no mesmo formato (
+          <code>sucesso</code>, <code>codigo</code>, <code>dados.documento</code>...).
+        </li>
+        <li>
           <strong>Limite</strong>: 60 chamadas por minuto por setor. Acima disso, <code>429</code> com{" "}
           <code>Retry-After</code> (segundos para tentar de novo). Toda resposta traz{" "}
           <code>X-RateLimit-Remaining</code>.

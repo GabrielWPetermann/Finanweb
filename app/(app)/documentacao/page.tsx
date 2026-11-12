@@ -461,6 +461,11 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
           <strong>SOAP</strong>: <code>/api/soap</code>, com o WSDL em <a href="/api/soap?wsdl">/api/soap?wsdl</a>.
         </li>
         <li>
+          <strong>Formato da API de Vendas</strong>: <code>POST /api/v1/integracoes/financeiro</code> aceita qualquer
+          mensagem no envelope <code>documento</code> que a API de interoperabilidade de Vendas usa, com a chave em{" "}
+          <code>X-API-Key</code>. Envios desse caminho aparecem em Recebidos como <code>vendas (integracoes)</code>.
+        </li>
+        <li>
           Envios por REST e SOAP também vão para <a href="/socket">Socket</a> → Recebidos, com o remetente{" "}
           <code>vendas (REST)</code> ou <code>vendas (SOAP)</code>, e só viram lançamento depois de aprovados.
         </li>

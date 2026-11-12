@@ -355,7 +355,16 @@ dois passam pelo mesmo XSD e pelo mesmo código do socket. Tudo em `/api`,
 fora do login (o matcher do middleware não pega `/api`), com CORS liberado,
 porque há sistemas da turma que rodam no navegador.
 
-- **Chave**: REST e SOAP pedem `Authorization: Bearer <chave>`, a mesma
+- **Formato da API de interoperabilidade de Vendas**
+  (`app/api/v1/integracoes/financeiro`, `lib/integracao/documento.ts`): a
+  API de Vendas empurra mensagens para outros sistemas em
+  `{ documento: { raiz, namespace, atributos, dados } }`, com a chave em
+  `X-API-Key`. Esse envelope é o XML do contrato escrito em JSON (elemento
+  com atributo vira `{ "@atributos": {...}, "#texto": "..." }`), então volta
+  para XML e segue o caminho de sempre; a resposta vai no formato deles
+  (`sucesso`, `codigo`, `mensagem`, `dados`, `erro`, `requisicao_id`,
+  `timestamp`), com a resposta das consultas em `dados.documento`.
+- **Chave**: REST e SOAP pedem `Authorization: Bearer <chave>` (ou `X-API-Key`), a mesma
   chave do registry, gerada em `/admin/registro`. A `origem` da mensagem tem
   que ser o setor da chave (403 se não for); nas consultas, sem `origem`, vale
   o setor. O socket fica de fora: o protocolo da turma não leva chave.
