@@ -434,7 +434,9 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
         <li>
           <strong>Aviso de pagamento</strong>: ao trocar para <code>CONFIRMADO</code> ou <code>CANCELADO</code> o
           status de uma compra ou salário vindo de outro setor, o Finanweb avisa esse setor pelo servidor da
-          turma. O aviso aparece no <a href="/chat">Chat</a> e só chega se o setor estiver conectado.
+          turma (aparece no <a href="/chat">Chat</a>) e, se o setor publicou no <a href="/registro">Registry</a>{" "}
+          um serviço que recebe o aviso, também pela API dele. Para isso o Finanweb precisa da chave que o setor
+          emitiu, na variável <code>CHAVE_SETOR_&lt;SETOR&gt;</code> (por exemplo <code>CHAVE_SETOR_COMPRAS</code>).
         </li>
         <li>
           <strong>Pagamentos da folha</strong>: o RH pode perguntar quem já foi pago. Para marcar um salário como

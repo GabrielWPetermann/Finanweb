@@ -418,6 +418,15 @@ pública `/registro`:
   ouvinte são reservados.
 - Governança em `/admin/registro`: gerar ou trocar a chave de um setor,
   remover um setor com os serviços dele, desativar ou reativar um serviço.
+- **O Financeiro também consome pelo registry** (`lib/integracao/entrega.ts`):
+  ao gerar um aviso de pagamento, além da fila do socket, ele procura no
+  registry o serviço REST (POST) do setor de origem cujo nome contém "aviso de
+  pagamento" e manda o XML do aviso para o endpoint publicado, com a chave que
+  o setor emitiu para o Financeiro (`CHAVE_SETOR_<SETOR>`, só em variável de
+  ambiente). Sem chave, sem serviço ativo no registry ou com o setor fora do
+  ar, o aviso segue só pelo socket e pela busca do setor; o pagamento nunca
+  falha por isso. O Compras publicou "Recepcao de aviso de pagamento" e
+  responde 202 (recebido) ou 200 (repetido).
 
 ### Cadastros (clientes e fornecedores)
 
@@ -493,6 +502,7 @@ SESSION_COOKIE_NAME=sf_sessao
 SOCKET_HOST=               # servidor de chat; vazio = electronicsystems.com.br
 SOCKET_PORTA=              # vazio = 5000
 SOCKET_NOME=finanweb       # nome do Finanweb no servidor de chat
+CHAVE_SETOR_COMPRAS=       # chave que o Compras emitiu para o Financeiro chamar a API dele
 ```
 
 ## Rodando localmente
