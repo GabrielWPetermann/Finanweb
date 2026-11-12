@@ -446,6 +446,12 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
           <code>documento</code> com a chave <code>CHAVE_SETOR_VENDAS</code> em <code>X-API-Key</code>.
         </li>
         <li>
+          <strong>Folha do RH pela API deles</strong>: em <a href="/socket">Socket</a>, &quot;Buscar folha do RH&quot;
+          traz a folha publicada de uma competência para Recebidos, para aprovar como as outras. A cada baixa de
+          salários, o RH recebe a folha processada (<code>folha/processada</code>) com todos os funcionários já
+          pagos daquela folha. A chave é a <code>CHAVE_SETOR_RH</code>.
+        </li>
+        <li>
           <strong>Pagamentos da folha</strong>: o RH pode perguntar quem já foi pago. Para marcar um salário como
           pago, edite o pagamento em <a href="/pagamentos">Pagamentos</a> e troque o status para{" "}
           <code>CONFIRMADO</code>.

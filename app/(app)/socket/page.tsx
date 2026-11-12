@@ -1,6 +1,7 @@
 import { listarRecebidos } from "@/lib/socket/caixa-entrada";
 import { SOCKET_HOST, SOCKET_NOME, SOCKET_PORTA } from "@/lib/socket/config";
 import { lerConectados } from "@/lib/socket/estado";
+import { BuscarFolhaRh } from "./buscar-folha-rh";
 import { Conectados } from "./conectados";
 import { EnviarForm } from "./enviar-form";
 import { ListaRecebidos, type LinhaRecebido } from "./lista-recebidos";
@@ -55,6 +56,7 @@ export default async function SocketPage() {
 
       <h2>Recebidos</h2>
       <p className="subtitulo">Arquivos aguardando importação.</p>
+      <BuscarFolhaRh competenciaAtual={new Date().toISOString().slice(0, 7)} />
       {erroLista ? <p className="erro">{erroLista}</p> : <ListaRecebidos linhas={linhas} />}
     </div>
   );

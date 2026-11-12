@@ -452,6 +452,15 @@ pública `/registro`:
   (`lib/integracao/documento.ts`), com `CHAVE_SETOR_VENDAS` em `X-API-Key`, e
   `"sucesso": false` no corpo conta como recusa. Se o setor publicar no
   registry, o serviço publicado passa a valer.
+- **RH (API RH Conecta)**: `lib/integracao/rh.ts`, com `CHAVE_SETOR_RH` em
+  `Authorization: Bearer` (endereço trocável por `RH_API_URL`). Em `/socket`,
+  "Buscar folha do RH" chama `GET /api/v1/integracoes/financeiro/folha/{AAAA-MM}`,
+  confere no `folha-v1.xsd` e põe a folha em Recebidos para aprovar. A cada
+  baixa de salários (edição ou em lote), o Financeiro devolve
+  `POST /api/v1/integracoes/financeiro/folha/processada` com a folha
+  (origem `financeiro`) e todos os funcionários já pagos dela; matrícula,
+  bruto e descontos saem do arquivo original da folha no Blob. Sem chave ou
+  com o RH recusando, a baixa vale do mesmo jeito.
 
 ### Cadastros (clientes e fornecedores)
 

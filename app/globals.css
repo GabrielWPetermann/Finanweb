@@ -750,3 +750,9 @@ tr.linha-marcada td {
   margin: 6px 0 0;
   padding-left: 20px;
 }
+
+.buscar-folha .erro,
+.buscar-folha .sucesso {
+  flex-basis: 100%;
+  margin: 0;
+}

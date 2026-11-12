@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { getUsuarioAtual } from "@/lib/auth";
 import { lerStatus, paraNumero, paraDataInput } from "@/lib/forms";
 import { resolverParceiroFormulario } from "@/lib/parceiros";
+import { devolverFolhasProcessadas } from "@/lib/integracao/rh";
 import { avisarPagamento } from "@/lib/socket/avisos";
 
 // Recebe a transacao: chamada pelo prisma de fora, ela pediria outra conexao
@@ -104,7 +105,14 @@ export async function editarPagamentoAction(formData: FormData) {
     });
   });
 
-  if (anterior && atualizada) await avisarPagamento(anterior.status, atualizada, usuario.username);
+  if (anterior && atualizada) {
+    await avisarPagamento(anterior.status, atualizada, usuario.username);
+    // Salario da folha que mudou de status: o RH recebe a folha processada
+    // com quem ja foi pago.
+    if (atualizada.origem === "rh" && anterior.status.trim().toUpperCase() !== status.toUpperCase()) {
+      await devolverFolhasProcessadas([atualizada.referencia], usuario.username);
+    }
+  }
 
   revalidatePath("/pagamentos");
   revalidatePath("/");
@@ -160,6 +168,11 @@ async function baixarPagamentos(formData: FormData, status: "CONFIRMADO" | "CANC
         .map((d) => avisarPagamento(d.status, { ...d, status }, usuario.username))
     );
   }
+  // Uma folha processada por folha envolvida, com todos os ja pagos dela.
+  await devolverFolhasProcessadas(
+    despesas.filter((d) => d.origem === "rh").map((d) => d.referencia),
+    usuario.username
+  );
 
   revalidatePath("/pagamentos");
   revalidatePath("/");

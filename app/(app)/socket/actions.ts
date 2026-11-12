@@ -11,6 +11,7 @@ import { SOCKET_NOME } from "@/lib/socket/config";
 import { normalizarDestino } from "@/lib/socket/protocolo";
 import { lerConectados, resolverDestinatarios, type EstadoConectados } from "@/lib/socket/estado";
 import { descartarRecebido, lerRecebido, listarRecebidos } from "@/lib/socket/caixa-entrada";
+import { buscarFolhaDoRh, type ResultadoRh } from "@/lib/integracao/rh";
 
 export interface ResultadoEnvio {
   ok: boolean;
@@ -176,4 +177,14 @@ export async function descartarRecebidosAction(formData: FormData) {
   const pathnames = formData.getAll("pathname").map(String).filter(Boolean);
   await Promise.all(pathnames.map((pathname) => descartarRecebido(pathname)));
   revalidatePath("/socket");
+}
+
+/** Busca na API do RH a folha de uma competencia e poe em Recebidos. */
+export async function buscarFolhaRhAction(_estadoAnterior: ResultadoRh | null, formData: FormData): Promise<ResultadoRh> {
+  const usuario = await getUsuarioAtual();
+  if (!usuario) return { ok: false, erro: SESSAO_EXPIRADA };
+
+  const resultado = await buscarFolhaDoRh(String(formData.get("competencia") ?? "").trim());
+  if (resultado.ok) revalidatePath("/socket");
+  return resultado;
 }
