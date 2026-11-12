@@ -15,3 +15,18 @@ export function paraDataInput(valor: FormDataEntryValue | null): Date {
 export function paraDataInputValue(data: Date): string {
   return data.toISOString().slice(0, 10);
 }
+
+// Status de um lancamento, os mesmos dos contratos v2: PENDENTE = a receber
+// ou a pagar, CONFIRMADO = recebido ou pago, CANCELADO = nao vale.
+export const STATUS_LANCAMENTO = ["PENDENTE", "CONFIRMADO", "CANCELADO"] as const;
+
+/**
+ * Status escolhido no formulario, ou null se nao for um dos tres. Na edicao,
+ * `atual` e o status gravado: um valor antigo de texto livre (de um CSV, por
+ * exemplo) pode ser mantido como esta, mas nao digitado de novo.
+ */
+export function lerStatus(valor: FormDataEntryValue | null, atual?: string): string | null {
+  const status = String(valor ?? "").trim();
+  if ((STATUS_LANCAMENTO as readonly string[]).includes(status)) return status;
+  return atual !== undefined && status === atual ? status : null;
+}

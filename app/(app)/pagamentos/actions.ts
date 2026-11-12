@@ -1,14 +1,17 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getUsuarioAtual } from "@/lib/auth";
-import { paraNumero, paraDataInput } from "@/lib/forms";
+import { lerStatus, paraNumero, paraDataInput } from "@/lib/forms";
 import { resolverParceiroFormulario } from "@/lib/parceiros";
 import { avisarPagamento } from "@/lib/socket/avisos";
 
-async function resolverCategoriaSaida(nome: string) {
-  return prisma.categoria.upsert({
+// Recebe a transacao: chamada pelo prisma de fora, ela pediria outra conexao
+// enquanto a transacao segura a dela, e com o pool cheio as duas se esperam.
+async function resolverCategoriaSaida(db: Prisma.TransactionClient, nome: string) {
+  return db.categoria.upsert({
     where: { nome_tipo: { nome, tipo: "SAIDA" } },
     create: { nome, tipo: "SAIDA" },
     update: {},
@@ -21,10 +24,10 @@ export async function criarPagamentoAction(formData: FormData) {
 
   const categoriaNome = String(formData.get("categoria") ?? "").trim();
   const formaPagamento = String(formData.get("formaPagamento") ?? "").trim();
-  const status = String(formData.get("status") ?? "").trim() || "CONFIRMADO";
+  const status = lerStatus(formData.get("status"));
   const dataPagamento = formData.get("dataPagamento");
 
-  if (!categoriaNome || !formaPagamento || !dataPagamento) return;
+  if (!categoriaNome || !formaPagamento || !status || !dataPagamento) return;
 
   const valor = paraNumero(formData.get("valor"));
 
@@ -38,7 +41,7 @@ export async function criarPagamentoAction(formData: FormData) {
     );
     if (!fornecedorId) return;
 
-    const categoria = await resolverCategoriaSaida(categoriaNome);
+    const categoria = await resolverCategoriaSaida(tx, categoriaNome);
 
     await tx.despesaAgrupada.create({
       data: {
@@ -64,16 +67,16 @@ export async function editarPagamentoAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const categoriaNome = String(formData.get("categoria") ?? "").trim();
   const formaPagamento = String(formData.get("formaPagamento") ?? "").trim();
-  const status = String(formData.get("status") ?? "").trim();
   const dataPagamento = formData.get("dataPagamento");
-
-  if (!id || !categoriaNome || !formaPagamento || !status || !dataPagamento) return;
-
-  const valor = paraNumero(formData.get("valor"));
 
   // O status de antes decide se a edicao baixou uma despesa vinda de outro
   // setor, que entao recebe o aviso de pagamento.
   const anterior = await prisma.despesaAgrupada.findUnique({ where: { id }, select: { status: true } });
+  const status = lerStatus(formData.get("status"), anterior?.status);
+
+  if (!id || !anterior || !categoriaNome || !formaPagamento || !status || !dataPagamento) return;
+
+  const valor = paraNumero(formData.get("valor"));
 
   const atualizada = await prisma.$transaction(async (tx) => {
     const fornecedorId = await resolverParceiroFormulario(
@@ -85,7 +88,7 @@ export async function editarPagamentoAction(formData: FormData) {
     );
     if (!fornecedorId) return null;
 
-    const categoria = await resolverCategoriaSaida(categoriaNome);
+    const categoria = await resolverCategoriaSaida(tx, categoriaNome);
 
     return tx.despesaAgrupada.update({
       where: { id },

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { editarRecebimentoAction, excluirRecebimentoAction } from "./actions";
 import { SeletorParceiro, type OpcaoParceiro } from "../_components/seletor-parceiro";
+import { SeletorStatus } from "../_components/seletor-status";
 
 export interface RecebimentoLinha {
   id: string;
@@ -146,10 +147,7 @@ export function TabelaRecebimentos({
               Data
               <input type="date" name="dataPedido" defaultValue={selecionado?.dataPedido} required />
             </label>
-            <label>
-              Status
-              <input type="text" name="status" defaultValue={selecionado?.status} required />
-            </label>
+            <SeletorStatus tipo="recebimento" valorInicial={selecionado?.status} />
           </div>
 
           <datalist id="categorias-entrada-dialog">

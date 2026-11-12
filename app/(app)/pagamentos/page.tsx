@@ -4,6 +4,7 @@ import { getUsuarioAtual } from "@/lib/auth";
 import { criarPagamentoAction } from "./actions";
 import { TabelaPagamentos, type PagamentoLinha } from "./tabela-pagamentos";
 import { SeletorParceiro } from "../_components/seletor-parceiro";
+import { SeletorStatus } from "../_components/seletor-status";
 
 function formatarMoeda(valor: number) {
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -132,10 +133,7 @@ export default async function PagamentosPage({ searchParams }: Props) {
             Data
             <input type="date" name="dataPagamento" required />
           </label>
-          <label>
-            Status
-            <input type="text" name="status" placeholder="CONFIRMADO" />
-          </label>
+          <SeletorStatus tipo="pagamento" />
         </div>
         <datalist id="categorias-saida-novo">
           {categorias.map((c) => (

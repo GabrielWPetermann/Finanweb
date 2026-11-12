@@ -1,13 +1,16 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getUsuarioAtual } from "@/lib/auth";
-import { paraNumero, paraDataInput } from "@/lib/forms";
+import { lerStatus, paraNumero, paraDataInput } from "@/lib/forms";
 import { resolverParceiroFormulario } from "@/lib/parceiros";
 
-async function resolverCategoriaEntrada(nome: string) {
-  return prisma.categoria.upsert({
+// Recebe a transacao: chamada pelo prisma de fora, ela pediria outra conexao
+// enquanto a transacao segura a dela, e com o pool cheio as duas se esperam.
+async function resolverCategoriaEntrada(db: Prisma.TransactionClient, nome: string) {
+  return db.categoria.upsert({
     where: { nome_tipo: { nome, tipo: "ENTRADA" } },
     create: { nome, tipo: "ENTRADA" },
     update: {},
@@ -20,10 +23,10 @@ export async function criarRecebimentoAction(formData: FormData) {
 
   const categoriaNome = String(formData.get("categoria") ?? "").trim();
   const formaPagamento = String(formData.get("formaPagamento") ?? "").trim();
-  const status = String(formData.get("status") ?? "").trim() || "CONFIRMADO";
+  const status = lerStatus(formData.get("status"));
   const dataPedido = formData.get("dataPedido");
 
-  if (!categoriaNome || !formaPagamento || !dataPedido) return;
+  if (!categoriaNome || !formaPagamento || !status || !dataPedido) return;
 
   const valorTotal = paraNumero(formData.get("valorTotal"));
   const subtotal = paraNumero(formData.get("subtotal"), valorTotal);
@@ -35,7 +38,7 @@ export async function criarRecebimentoAction(formData: FormData) {
     const clienteId = await resolverParceiroFormulario(tx, formData, "clienteId", "clienteNovoNome", "CLIENTE");
     if (!clienteId) return;
 
-    const categoria = await resolverCategoriaEntrada(categoriaNome);
+    const categoria = await resolverCategoriaEntrada(tx, categoriaNome);
 
     await tx.pedidoAgrupado.create({
       data: {
@@ -65,10 +68,11 @@ export async function editarRecebimentoAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const categoriaNome = String(formData.get("categoria") ?? "").trim();
   const formaPagamento = String(formData.get("formaPagamento") ?? "").trim();
-  const status = String(formData.get("status") ?? "").trim();
   const dataPedido = formData.get("dataPedido");
+  const atual = await prisma.pedidoAgrupado.findUnique({ where: { id }, select: { status: true } });
+  const status = lerStatus(formData.get("status"), atual?.status);
 
-  if (!id || !categoriaNome || !formaPagamento || !status || !dataPedido) return;
+  if (!id || !atual || !categoriaNome || !formaPagamento || !status || !dataPedido) return;
 
   const valorTotal = paraNumero(formData.get("valorTotal"));
   const subtotal = paraNumero(formData.get("subtotal"), valorTotal);
@@ -80,7 +84,7 @@ export async function editarRecebimentoAction(formData: FormData) {
     const clienteId = await resolverParceiroFormulario(tx, formData, "clienteId", "clienteNovoNome", "CLIENTE");
     if (!clienteId) return;
 
-    const categoria = await resolverCategoriaEntrada(categoriaNome);
+    const categoria = await resolverCategoriaEntrada(tx, categoriaNome);
 
     await tx.pedidoAgrupado.update({
       where: { id },

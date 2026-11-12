@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { editarPagamentoAction, excluirPagamentoAction } from "./actions";
 import { SeletorParceiro, type OpcaoParceiro } from "../_components/seletor-parceiro";
+import { SeletorStatus } from "../_components/seletor-status";
 
 export interface PagamentoLinha {
   id: string;
@@ -126,10 +127,7 @@ export function TabelaPagamentos({
               Data
               <input type="date" name="dataPagamento" defaultValue={selecionado?.dataPagamento} required />
             </label>
-            <label>
-              Status
-              <input type="text" name="status" defaultValue={selecionado?.status} required />
-            </label>
+            <SeletorStatus tipo="pagamento" valorInicial={selecionado?.status} />
           </div>
 
           <datalist id="categorias-saida-dialog">

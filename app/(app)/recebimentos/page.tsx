@@ -4,6 +4,7 @@ import { getUsuarioAtual } from "@/lib/auth";
 import { criarRecebimentoAction } from "./actions";
 import { TabelaRecebimentos, type RecebimentoLinha } from "./tabela-recebimentos";
 import { SeletorParceiro } from "../_components/seletor-parceiro";
+import { SeletorStatus } from "../_components/seletor-status";
 
 function formatarMoeda(valor: number) {
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -152,10 +153,7 @@ export default async function RecebimentosPage({ searchParams }: Props) {
             Data
             <input type="date" name="dataPedido" required />
           </label>
-          <label>
-            Status
-            <input type="text" name="status" placeholder="CONFIRMADO" />
-          </label>
+          <SeletorStatus tipo="recebimento" />
         </div>
         <datalist id="categorias-entrada-novo">
           {categorias.map((c) => (
