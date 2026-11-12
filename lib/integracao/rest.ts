@@ -10,6 +10,7 @@
 import { autorizarSetor, origemDeOutroSetor } from "@/lib/integracao/acesso";
 import { carimbo, receberMovimento } from "@/lib/integracao/envios";
 import { erroParaJson, type Parametros, type RespostaJson } from "@/lib/integracao/json";
+import { listarAvisos } from "@/lib/socket/avisos";
 import { responderConsulta } from "@/lib/socket/consultas";
 
 // Os sistemas dos outros grupos podem rodar no navegador (o de Compras roda):
@@ -105,4 +106,42 @@ export async function consultarJson(
   // contrato, mas nao e um resultado: 503 para quem olha so o status.
   const corpo = paraJson(resposta.xml);
   return json(corpo, corpo.erro === undefined ? 200 : 503, cabecalhos);
+}
+
+/**
+ * GET dos avisos ja gerados para o setor da chave (pagamento ou recebimento).
+ * Pelo socket o aviso chega sozinho; pela API, quem nao fica conectado busca
+ * aqui, passando em `desde` o geradoEm do ultimo que ja leu. Cada setor so ve
+ * os proprios avisos.
+ */
+export async function buscarAvisosJson(
+  request: Request,
+  tipo: "pagamento" | "recebimento",
+  paraJson: (xml: string) => Record<string, unknown>
+): Promise<Response> {
+  const acesso = await autorizarSetor(request);
+  if (!acesso.ok) return json({ ok: false, erro: acesso.erro }, acesso.status, acesso.cabecalhos);
+  const { setor, cabecalhos } = acesso;
+
+  const parametros = new URL(request.url).searchParams;
+  const outroSetor = origemDeOutroSetor(parametros.get("origem") ?? "", setor);
+  if (outroSetor) return json({ ok: false, erro: outroSetor }, 403, cabecalhos);
+
+  const desdeTexto = parametros.get("desde");
+  const desde = desdeTexto ? new Date(desdeTexto) : undefined;
+  if (desde && Number.isNaN(desde.getTime())) {
+    return json({ ok: false, erro: "desde tem que ser uma data e hora ISO (ex.: 2026-11-01T00:00:00Z)." }, 400, cabecalhos);
+  }
+
+  try {
+    const avisos = await listarAvisos(tipo, setor, desde);
+    return json(
+      { origem: setor, avisos: avisos.map((a) => ({ ...paraJson(a.xml), geradoEm: a.geradoEm.toISOString() })) },
+      200,
+      cabecalhos
+    );
+  } catch (erro) {
+    console.error(erro);
+    return json({ ok: false, erro: "Não foi possível consultar o Financeiro agora. Tente de novo em alguns minutos." }, 503, cabecalhos);
+  }
 }

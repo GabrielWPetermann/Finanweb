@@ -20,6 +20,7 @@ export type SchemaXml =
   | "pendencias-fornecedor-v1.xsd"
   | "pagamentos-folha-v1.xsd"
   | "aviso-pagamento-v1.xsd"
+  | "aviso-recebimento-v1.xsd"
   // Mensagens proprias do servico SOAP (lib/integracao/soap.ts).
   | "servico-v1.xsd";
 

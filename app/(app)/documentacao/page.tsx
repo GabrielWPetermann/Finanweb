@@ -439,6 +439,13 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
           emitiu, na variável <code>CHAVE_SETOR_&lt;SETOR&gt;</code> (por exemplo <code>CHAVE_SETOR_COMPRAS</code>).
         </li>
         <li>
+          <strong>Aviso de recebimento</strong>: o mesmo em <a href="/recebimentos">Recebimentos</a>. Ao trocar para{" "}
+          <code>CONFIRMADO</code> ou <code>CANCELADO</code> o status de uma venda vinda de outro setor, o setor
+          recebe um <code>aviso-recebimento-v1</code> pelo servidor da turma e pela API dele. Vendas não publicou no
+          Registry, então o endereço da API de interoperabilidade deles fica no Finanweb, e o aviso vai no envelope{" "}
+          <code>documento</code> com a chave <code>CHAVE_SETOR_VENDAS</code> em <code>X-API-Key</code>.
+        </li>
+        <li>
           <strong>Pagamentos da folha</strong>: o RH pode perguntar quem já foi pago. Para marcar um salário como
           pago, edite o pagamento em <a href="/pagamentos">Pagamentos</a> e troque o status para{" "}
           <code>CONFIRMADO</code>.
@@ -457,7 +464,7 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
           <strong>REST (JSON)</strong>: <code>/api/v1</code>. Envios por <code>POST</code> (
           <code>/api/v1/vendas</code>, <code>/compras</code>, <code>/folhas</code>), consultas por{" "}
           <code>GET</code> (<code>/inadimplencia</code>, <code>/pendencias</code>, <code>/pagamentos-folha</code>,{" "}
-          <code>/avisos-pagamento</code>).
+          <code>/avisos-pagamento</code>, <code>/avisos-recebimento</code>).
         </li>
         <li>
           <strong>SOAP</strong>: <code>/api/soap</code>, com o WSDL em <a href="/api/soap?wsdl">/api/soap?wsdl</a>.
@@ -472,9 +479,10 @@ Cliente Exemplo LTDA,00011122233,contato@exemplo.com,11999998888`}</pre>
           <code>vendas (REST)</code> ou <code>vendas (SOAP)</code>, e só viram lançamento depois de aprovados.
         </li>
         <li>
-          Consultas respondem na hora, como pelo socket. Avisos de pagamento não têm como ser empurrados por
-          HTTP: o setor busca em <code>/api/v1/avisos-pagamento</code> ou na operação SOAP{" "}
-          <code>ConsultarAvisosPagamento</code>.
+          Consultas respondem na hora, como pelo socket. Os avisos vão pela API do setor quando ele tem uma (ver
+          acima) e ficam também para busca: <code>/api/v1/avisos-pagamento</code> e{" "}
+          <code>/api/v1/avisos-recebimento</code>, ou as operações SOAP <code>ConsultarAvisosPagamento</code> e{" "}
+          <code>ConsultarAvisosRecebimento</code>.
         </li>
         <li>
           <strong>Limites</strong>: 60 chamadas por minuto por setor na API, 120 por IP na busca do registry, 20

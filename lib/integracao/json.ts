@@ -301,6 +301,20 @@ export function avisoPagamentoJson(xml: string): Json {
   };
 }
 
+export function avisoRecebimentoJson(xml: string): Json {
+  const a = raiz(xml, "avisoRecebimento");
+  return {
+    id: atributo(a, "id"),
+    dataAviso: valorDe(a.dataAviso),
+    origem: valorDe(a.origem),
+    referencia: valorDe(a.referencia),
+    situacao: valorDe(a.situacao),
+    cliente: { nome: valorDe(a.cliente), documento: atributo(a.cliente, "documento") },
+    valor: numero(a.valor),
+    dataRecebimento: opcionalTexto(a.dataRecebimento),
+  };
+}
+
 /**
  * Mensagem do XSD pensada para quem mandou JSON: sem o numero da linha do XML
  * gerado aqui e sem o namespace na frente de cada elemento.

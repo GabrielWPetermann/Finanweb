@@ -62,6 +62,18 @@ export const CONTRATOS: Contrato[] = [
     soap: "ConsultarInadimplencia",
   },
   {
+    mensagem: "Aviso de recebimento",
+    setor: "Vendas",
+    sentido: "envia",
+    descricao:
+      "Recebe um aviso quando o Financeiro recebe ou cancela uma venda enviada por vocês, com a mesma referência.",
+    namespace: "urn:finanweb:aviso-recebimento:1.0",
+    schema: "aviso-recebimento-v1.xsd",
+    exemplos: ["aviso-recebimento-v1.xml", "avisos-recebimento-vendas.json"],
+    rest: "GET /api/v1/avisos-recebimento?origem=vendas&desde=2026-11-01T00:00:00Z",
+    soap: "ConsultarAvisosRecebimento",
+  },
+  {
     mensagem: "Compra",
     setor: "Compras",
     sentido: "recebe",

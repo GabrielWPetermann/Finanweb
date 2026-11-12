@@ -174,9 +174,10 @@ export default async function ContratosPage() {
           <code>503</code>.
         </li>
         <li>
-          <strong>Avisos de pagamento</strong>: pela API não há como o Financeiro chamar vocês, então vocês buscam:{" "}
-          <code>GET /api/v1/avisos-pagamento?desde=...</code>. Cada aviso traz{" "}
-          <code>geradoEm</code>; use o do último como <code>desde</code> na próxima vez.
+          <strong>Avisos</strong>: o Financeiro entrega pela API de vocês quando tem o endereço e a chave, e
+          guarda para busca: <code>GET /api/v1/avisos-pagamento?desde=...</code> (Compras e RH) e{" "}
+          <code>GET /api/v1/avisos-recebimento?desde=...</code> (Vendas). Cada aviso traz <code>geradoEm</code>; use
+          o do último como <code>desde</code> na próxima vez.
         </li>
       </ul>
       <pre>{`curl -X POST ${base}/api/v1/vendas -H "Authorization: Bearer <chave>" -H "Content-Type: application/json" -d @entrada-v2.json
@@ -201,8 +202,8 @@ curl -H "Authorization: Bearer <chave>" "${base}/api/v1/inadimplencia?documento=
         </li>
         <li>
           Envio ou consulta recusados voltam como <code>soap:Fault</code> (HTTP 500) com o motivo em{" "}
-          <code>faultstring</code>. Avisos de pagamento: operação <code>ConsultarAvisosPagamento</code>, com{" "}
-          <code>origem</code> e <code>desde</code>.
+          <code>faultstring</code>. Avisos: operações <code>ConsultarAvisosPagamento</code> e{" "}
+          <code>ConsultarAvisosRecebimento</code>, com <code>origem</code> e <code>desde</code>.
         </li>
       </ul>
       <pre>{ENVELOPE_EXEMPLO}</pre>
@@ -245,6 +246,12 @@ curl -H "Authorization: Bearer <chave>" "${base}/api/v1/inadimplencia?documento=
           vocês mandaram, o aviso vai como arquivo pelo socket para o nome de vocês no servidor (a{" "}
           <code>origem</code> do envio), e fica disponível para busca no REST e no SOAP, com a chave do setor. Pelo
           socket, só chega se estiverem conectados. Não precisa responder.
+        </li>
+        <li>
+          <strong>Aviso de recebimento</strong>: o mesmo para Vendas, quando o Financeiro recebe ou cancela uma
+          venda que vocês mandaram (<code>RECEBIDO</code> ou <code>CANCELADO</code>, com a <code>referencia</code> do
+          pedido). Além do socket e da busca, vai por <code>POST</code> para a API de interoperabilidade de vocês, no
+          envelope <code>documento</code> com <code>X-API-Key</code>.
         </li>
         <li>
           <strong>Pagamentos da folha</strong>: a <code>origem</code> da consulta tem que ser a mesma da folha

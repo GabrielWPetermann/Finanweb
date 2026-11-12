@@ -14,7 +14,7 @@ import { origemDeOutroSetor } from "@/lib/integracao/acesso";
 import { carimbo, receberMovimento } from "@/lib/integracao/envios";
 import { lerNamespaceRaiz } from "@/lib/socket/caixa-entrada";
 import { ehConsulta, responderConsulta } from "@/lib/socket/consultas";
-import { listarAvisosPagamento } from "@/lib/socket/avisos";
+import { listarAvisos } from "@/lib/socket/avisos";
 import { escaparXml } from "@/lib/xml/escape";
 import { MAX_BYTES_XML, validarContraXsd } from "@/lib/xml/validador";
 
@@ -131,15 +131,17 @@ const NOMES_ENVIO: Record<string, string> = {
 async function consultarAvisos(xml: string, setor: string): Promise<RespostaSoap> {
   const erros = await validarContraXsd(xml, "servico-v1.xsd");
   if (erros.length > 0) return falha("Client", `não passou no XSD: ${erros.slice(0, 3).join(" ")}`);
-  if (!/^<consultaAvisosPagamento\b/m.test(semDeclaracao(xml))) {
-    return falha("Client", "esperado <consultaAvisosPagamento> no soap:Body.");
-  }
+  // consultaAvisosPagamento ou consultaAvisosRecebimento: o resto e igual.
+  const tipo = /^<consultaAvisos(Pagamento|Recebimento)\b/m.exec(semDeclaracao(xml))?.[1];
+  if (!tipo) return falha("Client", "esperado <consultaAvisosPagamento> ou <consultaAvisosRecebimento> no soap:Body.");
 
   const desdeTexto = /<desde>([^<]+)<\/desde>/.exec(xml)?.[1];
   try {
-    const avisos = await listarAvisosPagamento(setor, desdeTexto ? new Date(desdeTexto) : undefined);
+    const desde = desdeTexto ? new Date(desdeTexto) : undefined;
+    const avisos = await listarAvisos(tipo === "Pagamento" ? "pagamento" : "recebimento", setor, desde);
     const itens = avisos.map((a) => `<aviso geradoEm="${a.geradoEm.toISOString()}">\n${semDeclaracao(a.xml)}\n</aviso>`);
-    return { status: 200, xml: envelope(`<respostaAvisosPagamento xmlns="${NS_SERVICO}">\n${itens.join("\n")}\n</respostaAvisosPagamento>`) };
+    const raiz = `respostaAvisos${tipo}`;
+    return { status: 200, xml: envelope(`<${raiz} xmlns="${NS_SERVICO}">\n${itens.join("\n")}\n</${raiz}>`) };
   } catch (erro) {
     console.error(erro);
     return falha("Server", "Não foi possível consultar o Financeiro agora. Tente de novo em alguns minutos.");

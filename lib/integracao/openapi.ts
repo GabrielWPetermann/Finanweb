@@ -164,6 +164,17 @@ const SCHEMAS: Record<string, Schema> = {
     dataPagamento: { ...data, nullable: true, description: "Só quando PAGO" },
     geradoEm: texto("Use o do último como `desde` na próxima busca", { format: "date-time" }),
   }),
+  AvisoRecebimento: obj({
+    id: texto(),
+    dataAviso: data,
+    origem,
+    referencia,
+    situacao: texto(undefined, { enum: ["RECEBIDO", "CANCELADO"] }),
+    cliente: obj({ nome: texto(), documento: { ...documento, nullable: true } }),
+    valor: valorSaida,
+    dataRecebimento: { ...data, nullable: true, description: "Só quando RECEBIDO" },
+    geradoEm: texto("Use o do último como `desde` na próxima busca", { format: "date-time" }),
+  }),
   Servico: obj({
     setor: origem,
     nome: texto(),
@@ -308,6 +319,25 @@ export function montarOpenApi(base: string): Schema {
           ],
           responses: {
             "200": json(obj({ origem, avisos: { type: "array", items: ref("AvisoPagamento") } }), "Avisos, do mais antigo ao mais novo"),
+            "400": erro("desde inválido"),
+            ...RESPOSTAS_ACESSO,
+            "503": erro("Falha do lado do Financeiro"),
+          },
+        },
+      },
+      "/api/v1/avisos-recebimento": {
+        get: {
+          tags: ["Vendas"],
+          summary: "Avisos de recebimento gerados para o setor da chave",
+          description:
+            "Também entregues por POST na API de Vendas, no envelope documento; esta busca serve para conferir ou recuperar o que faltou.",
+          security: CHAVE,
+          parameters: [
+            parametro("origem", false, origem, "Sem ela, o setor da chave"),
+            parametro("desde", false, texto("Exclusivo; use o geradoEm do último aviso lido", { format: "date-time" })),
+          ],
+          responses: {
+            "200": json(obj({ origem, avisos: { type: "array", items: ref("AvisoRecebimento") } }), "Avisos, do mais antigo ao mais novo"),
             "400": erro("desde inválido"),
             ...RESPOSTAS_ACESSO,
             "503": erro("Falha do lado do Financeiro"),

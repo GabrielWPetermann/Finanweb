@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Schema do aviso de recebimento: o Financeiro avisa, por conta propria, o
+  setor de Vendas quando uma venda que ele enviou (entrada-v2.xsd) e recebida
+  ou cancelada no Financeiro. E o equivalente, para Vendas, do aviso de
+  pagamento que Compras e RH recebem (aviso-pagamento-v1.xsd).
+
+  Vai pelo socket para o nome do setor no servidor (a <origem> da venda),
+  pela API do setor quando o Financeiro sabe onde entregar, e fica disponivel
+  para busca (GET /api/v1/avisos-recebimento ou ConsultarAvisosRecebimento).
+  Nao ha resposta.
+
+  Situacao:
+    RECEBIDO   o Financeiro recebeu o valor; <dataRecebimento> e o dia em que
+               a conta foi baixada
+    CANCELADO  o Financeiro cancelou a conta a receber
+
+  Regras de validacao (numeracao dos demais schemas do Finanweb):
+    R1  documento do cliente: 11 (CPF) ou 14 (CNPJ) digitos, opcional.
+    R3  valores monetarios: decimal de ate 14 digitos, 2 casas, nao negativo.
+    R4  datas: xs:date (AAAA-MM-DD).
+    R7  origem: letras minusculas, digitos e hifen, comecando por letra.
+    R8  referencia: sem espacos, ate 60 caracteres.
+    R10 id do aviso: letras, digitos, ponto, sublinhado e hifen, ate 64.
+    R12 situacao: enumeracao fechada RECEBIDO | CANCELADO.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:r="urn:finanweb:aviso-recebimento:1.0"
+           targetNamespace="urn:finanweb:aviso-recebimento:1.0"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <!-- ===================== Tipos simples ===================== -->
+
+  <!-- Texto obrigatorio. Nao pode ser vazio nem ter espaco no inicio/fim. -->
+  <xs:simpleType name="textoObrigatorio">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="120"/>
+      <xs:pattern value="\S(.*\S)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R1: CPF (11 digitos) ou CNPJ (14 digitos), so numeros. -->
+  <xs:simpleType name="documentoParceiro">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{11}|\d{14}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R7: nome do setor no servidor da turma, o mesmo que ele mandou. -->
+  <xs:simpleType name="identificadorSistema">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[a-z][a-z0-9\-]{1,29}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R8: referencia da venda no sistema do setor. -->
+  <xs:simpleType name="referencia">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9][A-Za-z0-9._/\-]{0,59}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R10: id do aviso, gerado pelo Financeiro. -->
+  <xs:simpleType name="idAviso">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9][A-Za-z0-9._\-]{0,63}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R3: valor monetario = Decimal(14,2), nao negativo. -->
+  <xs:simpleType name="valorMonetario">
+    <xs:restriction base="xs:decimal">
+      <xs:totalDigits value="14"/>
+      <xs:fractionDigits value="2"/>
+      <xs:minInclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- R12: situacao do recebimento (ver significado no topo). -->
+  <xs:simpleType name="situacao">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="RECEBIDO"/>
+      <xs:enumeration value="CANCELADO"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ===================== Tipos complexos ===================== -->
+
+  <!-- Nome do cliente no conteudo, documento (R1) opcional. -->
+  <xs:complexType name="cliente">
+    <xs:simpleContent>
+      <xs:extension base="r:textoObrigatorio">
+        <xs:attribute name="documento" type="r:documentoParceiro" use="optional"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- ===================== Elemento raiz ===================== -->
+
+  <xs:element name="avisoRecebimento">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="dataAviso" type="xs:date"/>                       <!-- R4 -->
+        <xs:element name="origem" type="r:identificadorSistema"/>           <!-- R7 -->
+        <xs:element name="referencia" type="r:referencia"/>                 <!-- R8 -->
+        <xs:element name="situacao" type="r:situacao"/>                     <!-- R12 -->
+        <xs:element name="cliente" type="r:cliente"/>
+        <xs:element name="valor" type="r:valorMonetario"/>                  <!-- R3 -->
+        <!-- So quando RECEBIDO. -->
+        <xs:element name="dataRecebimento" type="xs:date" minOccurs="0"/>   <!-- R4 -->
+      </xs:sequence>
+      <xs:attribute name="versao" type="xs:string" use="required" fixed="1.0"/>
+      <xs:attribute name="id" type="r:idAviso" use="required"/>  <!-- R10 -->
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

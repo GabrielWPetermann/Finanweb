@@ -14,6 +14,7 @@ const SCHEMAS: Record<string, [string, string]> = {
   pen: ["urn:finanweb:pendencias-fornecedor:1.0", "pendencias-fornecedor-v1.xsd"],
   pag: ["urn:finanweb:pagamentos-folha:1.0", "pagamentos-folha-v1.xsd"],
   avi: ["urn:finanweb:aviso-pagamento:1.0", "aviso-pagamento-v1.xsd"],
+  rec: ["urn:finanweb:aviso-recebimento:1.0", "aviso-recebimento-v1.xsd"],
 };
 
 // Os nomes sao os do campo soap do catalogo (lib/xml/contratos.ts).
@@ -25,6 +26,7 @@ export const OPERACOES = [
   { nome: "ConsultarPendencias", entrada: "pen:consultaPendencias", saida: "pen:respostaPendencias" },
   { nome: "ConsultarPagamentosFolha", entrada: "pag:consultaPagamentosFolha", saida: "pag:respostaPagamentosFolha" },
   { nome: "ConsultarAvisosPagamento", entrada: "tns:consultaAvisosPagamento", saida: "tns:respostaAvisosPagamento" },
+  { nome: "ConsultarAvisosRecebimento", entrada: "tns:consultaAvisosRecebimento", saida: "tns:respostaAvisosRecebimento" },
 ];
 
 /** base: origem publica do Finanweb, ex. https://finanwebsistema.vercel.app */

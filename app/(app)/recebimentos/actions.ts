@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { getUsuarioAtual } from "@/lib/auth";
 import { lerStatus, paraNumero, paraDataInput } from "@/lib/forms";
 import { resolverParceiroFormulario } from "@/lib/parceiros";
+import { avisarRecebimento } from "@/lib/socket/avisos";
 
 // Recebe a transacao: chamada pelo prisma de fora, ela pediria outra conexao
 // enquanto a transacao segura a dela, e com o pool cheio as duas se esperam.
@@ -80,13 +81,13 @@ export async function editarRecebimentoAction(formData: FormData) {
   const descontoValor = paraNumero(formData.get("descontoValor"));
   const frete = paraNumero(formData.get("frete"));
 
-  await prisma.$transaction(async (tx) => {
+  const atualizado = await prisma.$transaction(async (tx) => {
     const clienteId = await resolverParceiroFormulario(tx, formData, "clienteId", "clienteNovoNome", "CLIENTE");
-    if (!clienteId) return;
+    if (!clienteId) return null;
 
     const categoria = await resolverCategoriaEntrada(tx, categoriaNome);
 
-    await tx.pedidoAgrupado.update({
+    return tx.pedidoAgrupado.update({
       where: { id },
       data: {
         clienteId,
@@ -100,8 +101,13 @@ export async function editarRecebimentoAction(formData: FormData) {
         dataPedido: paraDataInput(dataPedido),
         status,
       },
+      include: { cliente: { select: { nome: true, documento: true } } },
     });
   });
+
+  // Venda vinda de outro setor que foi recebida ou cancelada aqui: o setor
+  // recebe o aviso de recebimento.
+  if (atualizado) await avisarRecebimento(atual.status, atualizado, usuario.username);
 
   revalidatePath("/recebimentos");
   revalidatePath("/");

@@ -12,6 +12,9 @@
     respostaAvisosPagamento  um <aviso> por aviso, com o <avisoPagamento> do
                              aviso-pagamento-v1.xsd dentro e o momento em que
                              foi gerado (use o do ultimo como proximo <desde>).
+    consultaAvisosRecebimento / respostaAvisosRecebimento
+                             o mesmo, para os avisos de recebimento
+                             (aviso-recebimento-v1.xsd).
 
   Envio ou consulta recusados voltam como soap:Fault.
 -->
@@ -69,6 +72,31 @@
             <xs:sequence>
               <!-- avisoPagamento do aviso-pagamento-v1.xsd. -->
               <xs:any namespace="urn:finanweb:aviso-pagamento:1.0" processContents="lax"/>
+            </xs:sequence>
+            <xs:attribute name="geradoEm" type="xs:dateTime" use="required"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="consultaAvisosRecebimento">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="origem" type="s:identificadorSistema"/>
+        <xs:element name="desde" type="xs:dateTime" minOccurs="0"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="respostaAvisosRecebimento">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="aviso" minOccurs="0" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <!-- avisoRecebimento do aviso-recebimento-v1.xsd. -->
+              <xs:any namespace="urn:finanweb:aviso-recebimento:1.0" processContents="lax"/>
             </xs:sequence>
             <xs:attribute name="geradoEm" type="xs:dateTime" use="required"/>
           </xs:complexType>

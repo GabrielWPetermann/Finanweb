@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Financeiro -> Vendas: a venda foi recebida. Schema: aviso-recebimento-v1.xsd -->
+<avisoRecebimento xmlns="urn:finanweb:aviso-recebimento:1.0" versao="1.0" id="cmvk7l4a1000ajy07b2c3d4e5-mgx3a7b">
+  <dataAviso>2026-11-10</dataAviso>
+  <origem>vendas</origem>
+  <referencia>V-2026-000123</referencia>
+  <situacao>RECEBIDO</situacao>
+  <cliente documento="12345678909">Ana Souza</cliente>
+  <valor>1450.00</valor>
+  <dataRecebimento>2026-11-10</dataRecebimento>
+</avisoRecebimento>

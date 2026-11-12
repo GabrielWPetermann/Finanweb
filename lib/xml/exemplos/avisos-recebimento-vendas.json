@@ -1,0 +1,19 @@
+{
+  "origem": "vendas",
+  "avisos": [
+    {
+      "id": "cmvk7l4a1000ajy07b2c3d4e5-mgx3a7b",
+      "dataAviso": "2026-11-10",
+      "origem": "vendas",
+      "referencia": "V-2026-000123",
+      "situacao": "RECEBIDO",
+      "cliente": {
+        "nome": "Ana Souza",
+        "documento": "12345678909"
+      },
+      "valor": 1450,
+      "dataRecebimento": "2026-11-10",
+      "geradoEm": "2026-11-10T16:20:05.318Z"
+    }
+  ]
+}

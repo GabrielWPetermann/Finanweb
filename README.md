@@ -236,6 +236,13 @@ desconectado perde o aviso, mas as consultas continuam valendo. Lançamento
 manual, importação v1 e baixa que veio do próprio setor num reenvio não
 geram aviso. A lógica fica em `lib/socket/avisos.ts`.
 
+**Aviso de recebimento**: o mesmo para as vendas, em `/recebimentos`. Uma
+venda com `origem` que passa de pendente para recebida (`CONFIRMADO`) ou
+`CANCELADO` gera um `aviso-recebimento-v1` (situação `RECEBIDO` ou
+`CANCELADO`, com a `referencia` do pedido, o cliente e o valor), que segue
+pela fila do socket, pela API do setor e fica para busca em
+`GET /api/v1/avisos-recebimento`.
+
 Na consulta de pagamentos da folha, o RH só vê as folhas que mandou: a busca
 é pela `origem` da consulta e pela referência da folha (cada funcionário foi
 gravado como `<folha>/<cpf>`). O status da despesa é texto livre em
@@ -308,6 +315,7 @@ três caminhos: socket, REST (JSON) e SOAP (ver "API REST e SOAP").
 | Pendências com fornecedor | Compras | responde | `pendencias-fornecedor-v1.xsd` | `GET /api/v1/pendencias` | `ConsultarPendencias` |
 | Pagamentos da folha | RH | responde | `pagamentos-folha-v1.xsd` | `GET /api/v1/pagamentos-folha` | `ConsultarPagamentosFolha` |
 | Aviso de pagamento | Compras e RH | envia | `aviso-pagamento-v1.xsd` | `GET /api/v1/avisos-pagamento` | `ConsultarAvisosPagamento` |
+| Aviso de recebimento | Vendas | envia | `aviso-recebimento-v1.xsd` | `GET /api/v1/avisos-recebimento` | `ConsultarAvisosRecebimento` |
 
 As consultas são respondidas na hora (ver "Socket"). Os envios vão para a
 caixa de entrada de `/socket` como os outros XMLs, e também podem ser
@@ -397,9 +405,10 @@ porque há sistemas da turma que rodam no navegador.
   (`/api/soap?wsdl`) importa os XSDs por `/api/contratos`, e o
   `servico-v1.xsd` tem só o que não existe no socket (confirmação de envio e
   consulta de avisos).
-- **Avisos de pagamento**: por HTTP o Financeiro não tem para onde mandar,
-  então quem integra assim busca (`GET /api/v1/avisos-pagamento?origem=&desde=`
-  ou `ConsultarAvisosPagamento`). A busca lê os avisos da fila do chat
+- **Avisos**: além da entrega na API do setor (ver Registry), ficam para
+  busca: `GET /api/v1/avisos-pagamento` e `/avisos-recebimento` (com
+  `origem` e `desde`), ou `ConsultarAvisosPagamento` e
+  `ConsultarAvisosRecebimento`. A busca lê os avisos da fila do chat
   (`MensagemChat`), tenham chegado pelo socket ou não.
 - Envios por REST e SOAP aparecem em `/socket` → Recebidos com o remetente
   `<origem> (REST)` ou `<origem> (SOAP)`, para aprovar como os outros.
@@ -436,6 +445,13 @@ pública `/registro`:
   ar, o aviso segue só pelo socket e pela busca do setor; o pagamento nunca
   falha por isso. O Compras publicou "Recepcao de aviso de pagamento" e
   responde 202 (recebido) ou 200 (repetido).
+- **Setor fora do registry**: o Vendas não publicou, mas informou a API de
+  interoperabilidade dele. O endereço fica em `ENDPOINTS_CONHECIDOS`
+  (`lib/integracao/entrega.ts`), com o formato que ele aceita: o aviso de
+  recebimento vai em JSON no envelope `documento`
+  (`lib/integracao/documento.ts`), com `CHAVE_SETOR_VENDAS` em `X-API-Key`, e
+  `"sucesso": false` no corpo conta como recusa. Se o setor publicar no
+  registry, o serviço publicado passa a valer.
 
 ### Cadastros (clientes e fornecedores)
 
