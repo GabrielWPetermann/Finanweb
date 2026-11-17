@@ -23,6 +23,11 @@ import { SCHEMA_POR_TIPO, validarContraXsd, type SchemaXml } from "@/lib/xml/val
 import { detectarMovimento, type TipoMovimento } from "@/lib/socket/caixa-entrada";
 import { resolverParceiroPorDocumento } from "@/lib/parceiros";
 
+// A gravacao de um envio e uma transacao so (tudo ou nada), com umas 5
+// consultas por linha. O prazo padrao do Prisma (5 s) estourava perto de 300
+// linhas; com 50 s, dentro dos 60 s das telas que importam, cabem uns 3.000.
+const PRAZO_TRANSACAO = { timeout: 50_000, maxWait: 10_000 };
+
 export interface ResultadoImportacao {
   ok: boolean;
   erro?: string;
@@ -531,7 +536,7 @@ async function importarEnvioSetor(
         if (envio.tipo === "ENTRADA") await tx.pedidoAgrupado.update({ where: { id }, data });
         else await tx.despesaAgrupada.update({ where: { id }, data });
       }
-    });
+    }, PRAZO_TRANSACAO);
   } catch (erro) {
     // Outra aprovacao lancou parte do arquivo entre a conferencia acima e a
     // gravacao: o unique de origem + referencia barra a duplicata.

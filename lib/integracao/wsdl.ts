@@ -38,7 +38,10 @@ export function montarWsdl(base: string): string {
     .map(([namespace, arquivo]) => `      <xsd:import namespace="${namespace}" schemaLocation="${base}/api/contratos/${arquivo}"/>`)
     .join("\n");
 
-  const mensagens = OPERACOES.map(
+  const mensagens = `  <wsdl:message name="Controle">
+    <wsdl:part name="controle" element="tns:controle"/>
+  </wsdl:message>
+` + OPERACOES.map(
     (o) => `  <wsdl:message name="${o.nome}Entrada">
     <wsdl:part name="corpo" element="${o.entrada}"/>
   </wsdl:message>
@@ -57,8 +60,14 @@ export function montarWsdl(base: string): string {
   const binding = OPERACOES.map(
     (o) => `    <wsdl:operation name="${o.nome}">
       <soap:operation soapAction="${NS_SERVICO}#${o.nome}" style="document"/>
-      <wsdl:input><soap:body use="literal"/></wsdl:input>
-      <wsdl:output><soap:body use="literal"/></wsdl:output>
+      <wsdl:input>
+        <soap:header message="tns:Controle" part="controle" use="literal"/>
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output>
+        <soap:header message="tns:Controle" part="controle" use="literal"/>
+        <soap:body use="literal"/>
+      </wsdl:output>
     </wsdl:operation>`
   ).join("\n");
 
@@ -76,7 +85,10 @@ export function montarWsdl(base: string): string {
     "Authorization: Bearer &lt;chave&gt;" (pedida ao Financeiro), e a origem da
     mensagem tem que ser o setor da chave. Rate limit: 60 chamadas por minuto
     por setor; sem chave, 401; origem de outro setor, 403; acima do limite,
-    429 com Retry-After.
+    429 com Retry-After. soap:Header: o tns:controle e opcional na
+    requisicao (idMensagem do cliente) e vem sempre na resposta, com o mesmo
+    idMensagem, a operacao e a hora. Bloco de header com mustUnderstand="1"
+    que o servico nao conhece volta como Fault MustUnderstand.
   </wsdl:documentation>
 
   <wsdl:types>

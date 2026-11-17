@@ -205,6 +205,13 @@ curl -H "Authorization: Bearer <chave>" "${base}/api/v1/inadimplencia?documento=
           <code>faultstring</code>. Avisos: operações <code>ConsultarAvisosPagamento</code> e{" "}
           <code>ConsultarAvisosRecebimento</code>, com <code>origem</code> e <code>desde</code>.
         </li>
+        <li>
+          <code>soap:Header</code>: mandem, se quiserem, um <code>&lt;controle&gt;</code> (
+          <a href="/api/contratos/servico-v1.xsd">servico-v1.xsd</a>) com o <code>idMensagem</code> de vocês. A
+          resposta sempre traz um <code>&lt;controle&gt;</code> com o mesmo <code>idMensagem</code> (ou um gerado), a
+          operação e a hora. Bloco de header desconhecido com <code>mustUnderstand=&quot;1&quot;</code> volta como
+          Fault <code>MustUnderstand</code>.
+        </li>
       </ul>
       <pre>{ENVELOPE_EXEMPLO}</pre>
 

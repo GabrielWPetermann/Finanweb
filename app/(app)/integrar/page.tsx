@@ -1,5 +1,8 @@
 import { IntegrarForm } from "./integrar-form";
 
+// Importar um arquivo grande grava linha a linha numa transacao de ate 50 s.
+export const maxDuration = 60;
+
 export default function IntegrarPage() {
   return (
     <div>

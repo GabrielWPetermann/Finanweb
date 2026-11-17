@@ -55,6 +55,25 @@
     </xs:complexType>
   </xs:element>
 
+  <!-- soap:Header. Na requisicao e opcional (so idMensagem, para o cliente
+       correlacionar); na resposta vem sempre, com o idMensagem recebido ou um
+       gerado, a operacao executada e a hora. -->
+  <xs:element name="controle">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="idMensagem">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:pattern value="[A-Za-z0-9._:\-]{1,64}"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+        <xs:element name="operacao" type="xs:string" minOccurs="0"/>
+        <xs:element name="dataHora" type="xs:dateTime" minOccurs="0"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
   <xs:element name="consultaAvisosPagamento">
     <xs:complexType>
       <xs:sequence>

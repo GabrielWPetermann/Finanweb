@@ -403,8 +403,11 @@ porque há sistemas da turma que rodam no navegador.
   SoapUI é normalizado antes do XSD. Envio responde `<confirmacaoEnvio>`,
   consulta responde a resposta do contrato, recusa vira `soap:Fault`. O WSDL
   (`/api/soap?wsdl`) importa os XSDs por `/api/contratos`, e o
-  `servico-v1.xsd` tem só o que não existe no socket (confirmação de envio e
-  consulta de avisos).
+  `servico-v1.xsd` tem só o que não existe no socket (confirmação de envio,
+  consulta de avisos e o `controle` do `soap:Header`). O header `controle` é
+  opcional na requisição (`idMensagem` do cliente) e vem sempre na resposta,
+  com o mesmo `idMensagem`, a operação e a hora; bloco desconhecido com
+  `mustUnderstand="1"` vira Fault `MustUnderstand`.
 - **Avisos**: além da entrega na API do setor (ver Registry), ficam para
   busca: `GET /api/v1/avisos-pagamento` e `/avisos-recebimento` (com
   `origem` e `desde`), ou `ConsultarAvisosPagamento` e

@@ -9,6 +9,12 @@
 // A chave do setor vai no cabecalho HTTP Authorization, como no REST; a rota
 // confere a chave e o rate limit antes, e aqui so se confere que a origem da
 // mensagem e o setor da chave.
+//
+// soap:Header: o cliente pode mandar um <controle> (servico-v1.xsd) com o
+// idMensagem dele; toda resposta volta com um <controle> com o mesmo
+// idMensagem (ou um gerado), a operacao executada e a hora. Bloco de header
+// com soap:mustUnderstand="1" que o servico nao conhece volta como Fault
+// MustUnderstand, como manda o SOAP 1.1.
 
 import { origemDeOutroSetor } from "@/lib/integracao/acesso";
 import { carimbo, receberMovimento } from "@/lib/integracao/envios";
@@ -48,7 +54,36 @@ function escaparRegex(texto: string): string {
  * elemento (<ven:movimento>); sem a normalizacao, o XSD e os parsers do
  * Finanweb nao reconheceriam o documento.
  */
-export function extrairCorpo(envelope: string): { ok: true; xml: string } | { ok: false; erro: string } {
+export interface CabecalhoSoap {
+  // idMensagem do <controle> do cliente, se veio.
+  idMensagem?: string;
+  // Nome do primeiro bloco com mustUnderstand="1" que o servico nao entende.
+  naoEntendido?: string;
+}
+
+const REGEX_ID_MENSAGEM = /^[A-Za-z0-9._:-]{1,64}$/;
+
+/** Le o soap:Header: o <controle> do Finanweb e os blocos obrigatorios. */
+function lerCabecalho(texto: string, prefixoSoap: string, nsEnvelope: Map<string, string>): CabecalhoSoap {
+  const header = new RegExp(`<${prefixoSoap}Header\\b([^>]*?)(?:/>|>([\\s\\S]*?)</${prefixoSoap}Header\\s*>)`).exec(texto);
+  if (!header?.[2]) return {};
+  const herdadas = new Map([...nsEnvelope, ...declaracoes(header[1])]);
+  const cabecalho: CabecalhoSoap = {};
+  for (const [, prefixo = "", nome, atributos] of header[2].matchAll(/<(?:([\w.-]+):)?([\w.-]+)\b([^>]*?)\/?>/g)) {
+    const namespace = declaracoes(atributos).get(prefixo) ?? herdadas.get(prefixo);
+    const doFinanweb = namespace === NS_SERVICO && nome === "controle";
+    if (!doFinanweb && /\bmustUnderstand\s*=\s*["'](1|true)["']/.test(atributos) && !cabecalho.naoEntendido) {
+      cabecalho.naoEntendido = `${prefixo ? `${prefixo}:` : ""}${nome}`;
+    }
+  }
+  const id = /<(?:[\w.-]+:)?idMensagem>\s*([^<]*?)\s*<\/(?:[\w.-]+:)?idMensagem>/.exec(header[2])?.[1];
+  if (id !== undefined) cabecalho.idMensagem = id;
+  return cabecalho;
+}
+
+export function extrairCorpo(
+  envelope: string
+): { ok: true; xml: string; cabecalho: CabecalhoSoap } | { ok: false; erro: string } {
   const texto = envelope.replace(/<\?xml[^>]*\?>/, "").replace(/<!--[\s\S]*?-->/g, "");
 
   const abertura = /<(?:([\w.-]+):)?Envelope\b([^>]*)>/.exec(texto);
@@ -90,7 +125,7 @@ export function extrairCorpo(envelope: string): { ok: true; xml: string } | { ok
   const novaAbertura = `<${nome} xmlns="${namespace}"${outras}${atributosSemNs}${fechada}>`;
   fragmento = novaAbertura + fragmento.slice(fragmento.indexOf(">") + 1);
 
-  return { ok: true, xml: `${DECLARACAO}\n${fragmento}\n` };
+  return { ok: true, xml: `${DECLARACAO}\n${fragmento}\n`, cabecalho: lerCabecalho(texto, prefixoSoap, nsEnvelope) };
 }
 
 export function semDeclaracao(xml: string): string {
@@ -107,11 +142,47 @@ ${corpo}
 `;
 }
 
+/** Poe o soap:Header de controle numa resposta ja montada por envelope(). */
+export function comCabecalho(resposta: RespostaSoap, idMensagem: string, operacao?: string): RespostaSoap {
+  const controle = `  <soap:Header>
+    <controle xmlns="${NS_SERVICO}">
+      <idMensagem>${escaparXml(idMensagem)}</idMensagem>${operacao ? `\n      <operacao>${operacao}</operacao>` : ""}
+      <dataHora>${new Date().toISOString()}</dataHora>
+    </controle>
+  </soap:Header>
+  <soap:Body>`;
+  return { ...resposta, xml: resposta.xml.replace("  <soap:Body>", controle) };
+}
+
+/** idMensagem para quem nao mandou o seu. */
+export function gerarIdMensagem(): string {
+  return `fin-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// Operacao do WSDL pelo elemento do Body (namespace + nome da raiz).
+const OPERACAO_POR_NAMESPACE: Record<string, string> = {
+  "urn:finanweb:entrada:2.0": "EnviarVenda",
+  "urn:finanweb:saida:2.0": "EnviarCompra",
+  "urn:finanweb:folha:1.0": "EnviarFolha",
+  "urn:finanweb:inadimplencia:1.0": "ConsultarInadimplencia",
+  "urn:finanweb:pendencias-fornecedor:1.0": "ConsultarPendencias",
+  "urn:finanweb:pagamentos-folha:1.0": "ConsultarPagamentosFolha",
+};
+
+function operacaoDoCorpo(xml: string): string | undefined {
+  const namespace = lerNamespaceRaiz(xml) ?? "";
+  if (namespace === NS_SERVICO) {
+    const tipo = /^<consultaAvisos(Pagamento|Recebimento)\b/m.exec(semDeclaracao(xml))?.[1];
+    return tipo ? `ConsultarAvisos${tipo}` : undefined;
+  }
+  return OPERACAO_POR_NAMESPACE[namespace];
+}
+
 // SOAP 1.1: falha volta com HTTP 500. Client = o pedido tem problema;
 // Server = problema do nosso lado, vale tentar de novo. Chave e rate limit
 // usam o status HTTP proprio (401, 403, 429), que os clientes tratam antes de
 // ler o envelope.
-export function falha(codigo: "Client" | "Server", mensagem: string, status = 500): RespostaSoap {
+export function falha(codigo: "Client" | "Server" | "MustUnderstand", mensagem: string, status = 500): RespostaSoap {
   return {
     status,
     xml: envelope(`<soap:Fault>
@@ -154,10 +225,31 @@ async function consultarAvisos(xml: string, setor: string): Promise<RespostaSoap
  */
 export async function atenderSoap(requisicao: string, setor: string): Promise<RespostaSoap> {
   if (Buffer.byteLength(requisicao, "utf8") > MAX_BYTES_XML) {
-    return falha("Client", "o limite é de 10 MB por requisição.");
+    return comCabecalho(falha("Client", "o limite é de 10 MB por requisição."), gerarIdMensagem());
   }
   const corpo = extrairCorpo(requisicao);
-  if (!corpo.ok) return falha("Client", corpo.erro);
+  if (!corpo.ok) return comCabecalho(falha("Client", corpo.erro), gerarIdMensagem());
+
+  const { idMensagem, naoEntendido } = corpo.cabecalho;
+  if (idMensagem !== undefined && !REGEX_ID_MENSAGEM.test(idMensagem)) {
+    return comCabecalho(
+      falha("Client", "idMensagem do <controle>: de 1 a 64 letras, dígitos, ponto, hífen, sublinhado ou dois-pontos."),
+      gerarIdMensagem()
+    );
+  }
+  const id = idMensagem ?? gerarIdMensagem();
+  if (naoEntendido) {
+    return comCabecalho(
+      falha("MustUnderstand", `o bloco de header ${naoEntendido} tem mustUnderstand="1", mas o serviço não o conhece.`),
+      id
+    );
+  }
+  return comCabecalho(await responder(corpo.xml, setor), id, operacaoDoCorpo(corpo.xml));
+}
+
+/** Escolhe e executa a operacao pelo elemento do Body. */
+async function responder(xml: string, setor: string): Promise<RespostaSoap> {
+  const corpo = { xml };
 
   // Todas as mensagens tem <origem> (no cabecalho dos envios, na raiz das
   // consultas). Ausente, o XSD aponta; de outro setor, para aqui.
